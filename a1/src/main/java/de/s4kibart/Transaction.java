@@ -97,6 +97,8 @@ public class Transaction implements Serializable {
         System.out.println("resetting system...");
         String[] command = {"zfs", "rollback", snapshotName()};
         executeCommand(command);
+        //because the transaction failed a new one has to be created
+        removeSnapshot();
     }
 
     private void removeSnapshot() {
