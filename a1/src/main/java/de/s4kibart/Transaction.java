@@ -11,7 +11,7 @@ public class Transaction implements Serializable {
     HashMap<String, String> writes;
     List<String> removes;
 
-    public void store(){
+    public void store() {
         try {
             FileOutputStream fileOutputStream = new FileOutputStream(name);
             ObjectOutputStream out = new ObjectOutputStream(fileOutputStream);
@@ -23,17 +23,18 @@ public class Transaction implements Serializable {
         }
     }
 
-    public boolean commit(){
+    public boolean commit() {
         boolean conflict = false;
         HashMap<String, Long> currentFileTimestamps = computeFileTimestamps();
-        for(Map.Entry<String, Long> e: currentFileTimestamps.entrySet()){
+        for (Map.Entry<String, Long> e : currentFileTimestamps.entrySet()) {
             Long previousTimestamp = fileTimestamps.get(e.getKey());
-            if (previousTimestamp == null || !previousTimestamp.equals(e.getValue())){
+            if (previousTimestamp == null || !previousTimestamp.equals(e.getValue())) {
                 conflict = true;
+                System.out.println("Conflict found: " + e.getKey());
                 break;
             }
         }
-        if (conflict){
+        if (conflict) {
             rollbackSnapshot();
             return false;
         }
@@ -41,23 +42,23 @@ public class Transaction implements Serializable {
         return true;
     }
 
-    public void write(String path, String content){
+    public void write(String path, String content) {
         writes.put(path, content);
         store();
     }
 
-    public void remove(String path){
+    public void remove(String path) {
         removes.add(path);
         store();
     }
 
-    public boolean read(String path){
-        if (hasConflicts(path)){
+    public boolean read(String path) {
+        if (fileHasConflicts(path)) {
             rollbackSnapshot();
             return false;
         }
         StringBuilder content = new StringBuilder();
-        try(BufferedReader reader = new BufferedReader(new FileReader(path))){
+        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 content.append(line).append(System.lineSeparator());
@@ -69,7 +70,7 @@ public class Transaction implements Serializable {
         return true;
     }
 
-    private void executeCommand(String[] command){
+    private void executeCommand(String[] command) {
         ProcessBuilder processBuilder = new ProcessBuilder(command);
         try {
             processBuilder.start();
@@ -78,55 +79,66 @@ public class Transaction implements Serializable {
         }
     }
 
-    private String snapshotName(){
+    private String snapshotName() {
         String fs = cfg.getZfsFilesystem();
-        if(!cfg.getFileRoot().isEmpty())
+        if (!cfg.getFileRoot().isEmpty())
             fs += cfg.getFileRoot();
         return fs + "@" + name;
     }
 
-    private void createSnapshot(){
+    private void createSnapshot() {
+        //zfs does not allow overwriting snapshots, so remove a snapshot of the same name if it exists
+        removeSnapshot();
         String[] command = {"zfs", "snapshot", snapshotName()};
         executeCommand(command);
     }
 
-    private void rollbackSnapshot(){
+    private void rollbackSnapshot() {
+        System.out.println("resetting system...");
         String[] command = {"zfs", "rollback", snapshotName()};
         executeCommand(command);
     }
 
-    private void removeSnapshot(){
+    private void removeSnapshot() {
         String[] command = {"zfs", "destroy", snapshotName()};
         executeCommand(command);
     }
 
-    private HashMap<String, Long> computeFileTimestamps(){
+    private HashMap<String, Long> computeFileTimestamps() {
         HashMap<String, Long> temp = new HashMap<>();
-        File dir = new File(this.cfg.getFileRoot().isEmpty() ? "." : this.cfg.getFileRoot());
-        for (File file: Objects.requireNonNull(dir.listFiles())){
+        String fsRoot = "/" + cfg.getZfsFilesystem() + this.cfg.getFileRoot();
+        File dir = new File(fsRoot);
+        for (File file : Objects.requireNonNull(dir.listFiles())) {
             temp.put(file.getPath(), file.lastModified());
         }
         return temp;
     }
 
-    private boolean hasConflicts(String path){
+    //only checks for conflicts on a single file
+    private boolean fileHasConflicts(String path) {
         File file = new File(path);
         return file.lastModified() != fileTimestamps.get(path);
     }
 
-    public Transaction(Config cfg, String name){
+    public Transaction(Config cfg, String name) {
         this.cfg = cfg;
         this.name = name;
         this.fileTimestamps = computeFileTimestamps();
         this.writes = new HashMap<>();
         this.removes = new ArrayList<>();
 
+        System.out.println("Initial state:----------------------");
+        for (Map.Entry<String, Long> e : fileTimestamps.entrySet()) {
+            System.out.println(e.getKey() + ": " + e.getValue());
+        }
+        System.out.println("---------------------------------");
+
         createSnapshot();
         store();
     }
 
     // reload current_transaction.t
-    public Transaction(String name){
+    public Transaction(String name) {
         try {
             FileInputStream fin = new FileInputStream(name);
             ObjectInputStream in = new ObjectInputStream(fin);

@@ -14,7 +14,7 @@ public class Main {
 
     public static void main(String[] args) {
         File configToml = new File("config.toml");
-        if(!configToml.exists()){
+        if (!configToml.exists()) {
             // generate sample config
             try (InputStream inputStream = Main.class.getResourceAsStream("/config.toml")) { // your input stream
                 assert inputStream != null;
@@ -31,10 +31,10 @@ public class Main {
 
         // Add all subcommands
         commandLine.addSubcommand(new TransactionStartCommand(cfg));
-//        commandLine.addSubcommand(new TransactionSCommitCommand());
-//        commandLine.addSubcommand(new TransactionWriteCommand());
-//        commandLine.addSubcommand(new TransactionRemoveCommand());
-//        commandLine.addSubcommand(new TransactionReadCommand());
+        commandLine.addSubcommand(new TransactionSCommitCommand());
+        commandLine.addSubcommand(new TransactionWriteCommand());
+        commandLine.addSubcommand(new TransactionRemoveCommand());
+        commandLine.addSubcommand(new TransactionReadCommand());
 
         // Execute the command
         int exitCode = commandLine.execute(args);
@@ -46,13 +46,7 @@ public class Main {
         name = "transaction",
         mixinStandardHelpOptions = true,
         version = "1.0",
-        description = "Manages file transactions",
-        subcommands = {
-                TransactionSCommitCommand.class,
-                TransactionWriteCommand.class,
-                TransactionRemoveCommand.class,
-                TransactionReadCommand.class
-        }
+        description = "Manages file transactions"
 )
 class ParentCommand implements Runnable {
     @Override
@@ -64,7 +58,7 @@ class ParentCommand implements Runnable {
 
 
 @CommandLine.Command(name = "start", mixinStandardHelpOptions = true, version = "1.0", description = "Starts a transaction")
-class TransactionStartCommand implements Runnable{
+class TransactionStartCommand implements Runnable {
 
     @CommandLine.Parameters(index = "0", description = "name of transaction")
     private String name;
@@ -74,7 +68,7 @@ class TransactionStartCommand implements Runnable{
         // Will be populated later
     }
 
-    public TransactionStartCommand(Config cfg){
+    public TransactionStartCommand(Config cfg) {
         this.cfg = cfg;
     }
 
@@ -90,7 +84,7 @@ class TransactionStartCommand implements Runnable{
 }
 
 @CommandLine.Command(name = "commit", mixinStandardHelpOptions = true, version = "1.0", description = "Commits a transaction if no conflicts were detected and otherwise rolls back to the initial state")
-class TransactionSCommitCommand implements Callable<Boolean>{
+class TransactionSCommitCommand implements Callable<Boolean> {
 
     @CommandLine.Parameters(index = "0", description = "name of transaction")
     private String name;
@@ -102,7 +96,7 @@ class TransactionSCommitCommand implements Callable<Boolean>{
 }
 
 @CommandLine.Command(name = "write", mixinStandardHelpOptions = true, version = "1.0", description = "Writes to a path as part of a named transaction")
-class TransactionWriteCommand implements Runnable{
+class TransactionWriteCommand implements Runnable {
 
     @CommandLine.Parameters(index = "0", description = "name of transaction")
     private String name;
@@ -120,7 +114,7 @@ class TransactionWriteCommand implements Runnable{
 }
 
 @CommandLine.Command(name = "remove", mixinStandardHelpOptions = true, version = "1.0", description = "Removes a file as part of a named transaction")
-class TransactionRemoveCommand implements Runnable{
+class TransactionRemoveCommand implements Runnable {
 
     @CommandLine.Parameters(index = "0", description = "name of transaction")
     private String name;
@@ -135,7 +129,7 @@ class TransactionRemoveCommand implements Runnable{
 }
 
 @CommandLine.Command(name = "read", mixinStandardHelpOptions = true, version = "1.0", description = "Reads a file as part of a named transaction")
-class TransactionReadCommand implements Runnable{
+class TransactionReadCommand implements Runnable {
 
     @CommandLine.Parameters(index = "0", description = "name of transaction")
     private String name;
