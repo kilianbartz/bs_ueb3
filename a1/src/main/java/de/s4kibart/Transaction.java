@@ -43,10 +43,12 @@ public class Transaction implements Serializable {
 
     public void write(String path, String content){
         writes.put(path, content);
+        store();
     }
 
     public void remove(String path){
         removes.add(path);
+        store();
     }
 
     public boolean read(String path){
@@ -102,7 +104,7 @@ public class Transaction implements Serializable {
         HashMap<String, Long> temp = new HashMap<>();
         File dir = new File(this.cfg.getFileRoot().isEmpty() ? "." : this.cfg.getFileRoot());
         for (File file: Objects.requireNonNull(dir.listFiles())){
-            fileTimestamps.put(file.getPath(), file.lastModified());
+            temp.put(file.getPath(), file.lastModified());
         }
         return temp;
     }
@@ -120,10 +122,11 @@ public class Transaction implements Serializable {
         this.removes = new ArrayList<>();
 
         createSnapshot();
+        store();
     }
 
     // reload current_transaction.t
-    public Transaction(){
+    public Transaction(String name){
         try {
             FileInputStream fin = new FileInputStream(name);
             ObjectInputStream in = new ObjectInputStream(fin);

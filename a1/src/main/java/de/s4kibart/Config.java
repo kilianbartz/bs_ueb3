@@ -3,8 +3,9 @@ package de.s4kibart;
 import com.moandjiezana.toml.Toml;
 
 import java.io.File;
+import java.io.Serializable;
 
-public class Config {
+public class Config implements Serializable {
 
     private String zfsFilesystem = "";
     private String fileRoot = "";

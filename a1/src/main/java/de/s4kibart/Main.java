@@ -1,67 +1,152 @@
 package de.s4kibart;
 
+import picocli.CommandLine;
+
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.concurrent.Callable;
 
 public class Main {
+
     public static void main(String[] args) {
         File configToml = new File("config.toml");
         if(!configToml.exists()){
             // generate sample config
-            try (InputStream inputStream = Main.class.getResourceAsStream("config.toml")) { // your input stream
+            try (InputStream inputStream = Main.class.getResourceAsStream("/config.toml")) { // your input stream
                 assert inputStream != null;
-                Files.copy(inputStream, Paths.get("path/to/file.txt"), StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(inputStream, Paths.get("config.toml"), StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
                 e.printStackTrace();
             }
             System.err.println("No config.toml existed. Please configure the newly generated config.toml.");
             System.exit(2);
         }
-        if (args.length < 2 || args.length > 3){
-            System.err.println("Only 'transaction start' and 'transaction end' are supported as operations");
-            System.exit(1);
-        }
-        if (!args[0].equalsIgnoreCase("transaction")){
-            System.err.println("Only 'transaction start' and 'transaction end' are supported as operations");
-            System.exit(1);
-        }
 
         Config cfg = new Config("config.toml");
-        Transaction t;
-        switch(args[1].toLowerCase()){
-            case "start":
-                // check if another transaction is still running
-                File lastTransactionFile = new File(Transaction.LAST_TRANSACTION_FILE);
-                if (lastTransactionFile.exists()){
-                    System.err.println("There is an old transaction which has not been completed. " +
-                            "Rollback or end it first before starting a new transaction.");
-                    System.exit(3);
-                }
-                String name;
-                if (args.length == 3){
-                    name = args[2];
-                } else {
-                    //if no name was provided: count up
-                    File directory = new File(".");
-                    FilenameFilter filter = (dir, n) -> n.startsWith("transaction");
-                    String[] matchingFiles = directory.list(filter);
-                    int count = matchingFiles != null ? matchingFiles.length : 0;
-                    name = "transaction_" + count + ".t";
-                }
-                t = new Transaction(cfg, name);
-                break;
-            case "end":
-                t = new Transaction();
-                t.commit();
-                break;
-            default:
-                System.err.println("Only 'transaction start' and 'transaction end' are supported as operations");
-                System.exit(1);
-        }
+        CommandLine commandLine = new CommandLine(new ParentCommand());
+
+        // Add all subcommands
+        commandLine.addSubcommand(new TransactionStartCommand(cfg));
+//        commandLine.addSubcommand(new TransactionSCommitCommand());
+//        commandLine.addSubcommand(new TransactionWriteCommand());
+//        commandLine.addSubcommand(new TransactionRemoveCommand());
+//        commandLine.addSubcommand(new TransactionReadCommand());
+
+        // Execute the command
+        int exitCode = commandLine.execute(args);
+        System.exit(exitCode);
     }
 }
+
+@CommandLine.Command(
+        name = "transaction",
+        mixinStandardHelpOptions = true,
+        version = "1.0",
+        description = "Manages file transactions",
+        subcommands = {
+                TransactionSCommitCommand.class,
+                TransactionWriteCommand.class,
+                TransactionRemoveCommand.class,
+                TransactionReadCommand.class
+        }
+)
+class ParentCommand implements Runnable {
+    @Override
+    public void run() {
+        // This code runs when no subcommand is specified
+        System.out.println("Please specify a subcommand. Use --help for more information.");
+    }
+}
+
+
+@CommandLine.Command(name = "start", mixinStandardHelpOptions = true, version = "1.0", description = "Starts a transaction")
+class TransactionStartCommand implements Runnable{
+
+    @CommandLine.Parameters(index = "0", description = "name of transaction")
+    private String name;
+    private Config cfg;
+
+    public TransactionStartCommand() {
+        // Will be populated later
+    }
+
+    public TransactionStartCommand(Config cfg){
+        this.cfg = cfg;
+    }
+
+    // Add a setter for the config
+    public void setConfig(Config cfg) {
+        this.cfg = cfg;
+    }
+
+    @Override
+    public void run() {
+        new Transaction(cfg, name);
+    }
+}
+
+@CommandLine.Command(name = "commit", mixinStandardHelpOptions = true, version = "1.0", description = "Commits a transaction if no conflicts were detected and otherwise rolls back to the initial state")
+class TransactionSCommitCommand implements Callable<Boolean>{
+
+    @CommandLine.Parameters(index = "0", description = "name of transaction")
+    private String name;
+
+    @Override
+    public Boolean call() throws Exception {
+        return new Transaction(name).commit();
+    }
+}
+
+@CommandLine.Command(name = "write", mixinStandardHelpOptions = true, version = "1.0", description = "Writes to a path as part of a named transaction")
+class TransactionWriteCommand implements Runnable{
+
+    @CommandLine.Parameters(index = "0", description = "name of transaction")
+    private String name;
+
+    @CommandLine.Parameters(index = "1", description = "path of the file to be written to")
+    private String path;
+
+    @CommandLine.Parameters(index = "2", description = "content to be written")
+    private String content;
+
+    @Override
+    public void run() {
+        new Transaction(name).write(path, content);
+    }
+}
+
+@CommandLine.Command(name = "remove", mixinStandardHelpOptions = true, version = "1.0", description = "Removes a file as part of a named transaction")
+class TransactionRemoveCommand implements Runnable{
+
+    @CommandLine.Parameters(index = "0", description = "name of transaction")
+    private String name;
+
+    @CommandLine.Parameters(index = "1", description = "path of the file to be removed")
+    private String path;
+
+    @Override
+    public void run() {
+        new Transaction(name).remove(path);
+    }
+}
+
+@CommandLine.Command(name = "read", mixinStandardHelpOptions = true, version = "1.0", description = "Reads a file as part of a named transaction")
+class TransactionReadCommand implements Runnable{
+
+    @CommandLine.Parameters(index = "0", description = "name of transaction")
+    private String name;
+
+    @CommandLine.Parameters(index = "1", description = "path of the file to be removed")
+    private String path;
+
+    @Override
+    public void run() {
+        new Transaction(name).read(path);
+    }
+}
+
+
