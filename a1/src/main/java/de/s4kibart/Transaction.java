@@ -98,7 +98,7 @@ public class Transaction implements Serializable {
         String[] command = {"zfs", "rollback", snapshotName()};
         executeCommand(command);
         //because the transaction failed a new one has to be created
-        removeSnapshot();
+//        removeSnapshot();
     }
 
     private void removeSnapshot() {
@@ -119,7 +119,9 @@ public class Transaction implements Serializable {
     //only checks for conflicts on a single file
     private boolean fileHasConflicts(String path) {
         File file = new File(path);
-        return file.lastModified() != fileTimestamps.get(path);
+        boolean conflict = file.lastModified() != fileTimestamps.get(path);
+        System.out.println(path + " has conflict: " + conflict);
+        return conflict;
     }
 
     public Transaction(Config cfg, String name) {

@@ -31,7 +31,7 @@ public class Main {
 
         // Add all subcommands
         commandLine.addSubcommand(new TransactionStartCommand(cfg));
-        commandLine.addSubcommand(new TransactionSCommitCommand());
+        commandLine.addSubcommand(new TransactionCommitCommand());
         commandLine.addSubcommand(new TransactionWriteCommand());
         commandLine.addSubcommand(new TransactionRemoveCommand());
         commandLine.addSubcommand(new TransactionReadCommand());
@@ -64,10 +64,6 @@ class TransactionStartCommand implements Runnable {
     private String name;
     private Config cfg;
 
-    public TransactionStartCommand() {
-        // Will be populated later
-    }
-
     public TransactionStartCommand(Config cfg) {
         this.cfg = cfg;
     }
@@ -84,14 +80,14 @@ class TransactionStartCommand implements Runnable {
 }
 
 @CommandLine.Command(name = "commit", mixinStandardHelpOptions = true, version = "1.0", description = "Commits a transaction if no conflicts were detected and otherwise rolls back to the initial state")
-class TransactionSCommitCommand implements Callable<Boolean> {
+class TransactionCommitCommand implements Callable<Integer> {
 
     @CommandLine.Parameters(index = "0", description = "name of transaction")
     private String name;
 
     @Override
-    public Boolean call() throws Exception {
-        return new Transaction(name).commit();
+    public Integer call() throws Exception {
+        return new Transaction(name).commit() ? 0 : 1;
     }
 }
 
@@ -129,7 +125,7 @@ class TransactionRemoveCommand implements Runnable {
 }
 
 @CommandLine.Command(name = "read", mixinStandardHelpOptions = true, version = "1.0", description = "Reads a file as part of a named transaction")
-class TransactionReadCommand implements Runnable {
+class TransactionReadCommand implements Callable<Integer> {
 
     @CommandLine.Parameters(index = "0", description = "name of transaction")
     private String name;
@@ -138,8 +134,8 @@ class TransactionReadCommand implements Runnable {
     private String path;
 
     @Override
-    public void run() {
-        new Transaction(name).read(path);
+    public Integer call() {
+        return new Transaction(name).read(path) ? 0 : 1;
     }
 }
 
