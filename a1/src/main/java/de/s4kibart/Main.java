@@ -13,20 +13,21 @@ import java.util.concurrent.Callable;
 public class Main {
 
     public static void main(String[] args) {
-        File configToml = new File("config.toml");
+        File configToml = new File("transactions_config.toml");
         if (!configToml.exists()) {
             // generate sample config
             try (InputStream inputStream = Main.class.getResourceAsStream("/config.toml")) { // your input stream
                 assert inputStream != null;
-                Files.copy(inputStream, Paths.get("config.toml"), StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(inputStream, Paths.get("transactions_config.toml"), StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            System.err.println("No config.toml existed. Please configure the newly generated config.toml.");
+            System.err
+                    .println("No config.toml existed. Please configure the newly generated transactions_config.toml.");
             System.exit(2);
         }
 
-        Config cfg = new Config("config.toml");
+        Config cfg = new Config("transactions_config.toml");
         CommandLine commandLine = new CommandLine(new ParentCommand());
 
         // Add all subcommands
@@ -42,12 +43,7 @@ public class Main {
     }
 }
 
-@CommandLine.Command(
-        name = "transaction",
-        mixinStandardHelpOptions = true,
-        version = "1.0",
-        description = "Manages file transactions"
-)
+@CommandLine.Command(name = "transaction", mixinStandardHelpOptions = true, version = "1.0", description = "Manages file transactions")
 class ParentCommand implements Runnable {
     @Override
     public void run() {
@@ -55,7 +51,6 @@ class ParentCommand implements Runnable {
         System.out.println("Please specify a subcommand. Use --help for more information.");
     }
 }
-
 
 @CommandLine.Command(name = "start", mixinStandardHelpOptions = true, version = "1.0", description = "Starts a transaction")
 class TransactionStartCommand implements Runnable {
@@ -138,5 +133,3 @@ class TransactionReadCommand implements Callable<Integer> {
         return new Transaction(name).read(path) ? 0 : 1;
     }
 }
-
-

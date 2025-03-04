@@ -5,20 +5,26 @@ import rtoml
 import sys
 import json
 
-def execute_command(cmd):
-    subprocess.run(cmd.split())
+def __execute_command(cmd, arg=""):
+    cmds = cmd.split()
+    if arg != "":
+        cmds.append(f'"{arg}"')
+    result = subprocess.run(cmds)
+    if(result.returncode != 0):
+        __eprint(f"{cmd} let to an error. Terminating...")
+        sys.exit(1)
 
-def eprint(*args, **kwargs):
+def __eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 def main():
     # check if config is present
     if not os.path.isfile("brainstorm_config.toml"):
         standard_config = {"transactions_jar": "transactions.jar"}
-        with(open("brainstorm_config.rtoml", "w") as f):
+        with(open("brainstorm_config.toml", "w") as f):
             rtoml.dump(standard_config, f)
-        eprint("A new config was generated because no existing one was found. Please configure it.")
-        sys.exit(1)
+            __eprint("A new config was generated because no existing one was found. Please configure it.")
+            sys.exit(1)
     with(open("brainstorm_config.toml") as f):
         config = rtoml.load(f)
     
@@ -26,7 +32,7 @@ def main():
 
     # start a transaction
     my_uuid = str(uuid.uuid4())
-    execute_command(f"java -jar {TRANSACTIONS_JAR} start {my_uuid}")
+    __execute_command(f"java -jar {TRANSACTIONS_JAR} start {my_uuid}")
     
     # construct entry
     name = input("Name of your idea: ")
@@ -38,9 +44,14 @@ def main():
         line = input("Next comment (leave blank to stop): ")
     comments = comments[1:]
     entry = {"name": name, "idea": idea, "comments": comments}
-    execute_command(f"java -jar {TRANSACTIONS_JAR} write {my_uuid} {name} {json.dumps(entry)}")
-    execute_command(f"java -jar {TRANSACTIONS_JAR} commit {my_uuid}")
+
+    # commit entry
+    json_str = json.dumps(entry)
+    escaped_json = json_str.replace('"', '\\"')
+    __execute_command(f"java -jar {TRANSACTIONS_JAR} write {my_uuid} {name}", arg=escaped_json)
+    __execute_command(f"java -jar {TRANSACTIONS_JAR} commit {my_uuid}")
 
 
 if __name__ == "__main__":
     main()
+
