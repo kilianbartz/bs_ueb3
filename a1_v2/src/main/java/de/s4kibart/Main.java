@@ -135,7 +135,7 @@ class TransactionReadCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        return new Transaction(name).read(path) ? 0 : 1;
+        return new Transaction(name).read(path) != null ? 0 : 1;
     }
 }
 

@@ -18,7 +18,12 @@ public class Config implements Serializable {
         return fileRoot;
     }
 
-    public Config(String path){
+    public Config(String zfsFilesystem, String fileRoot) {
+        this.zfsFilesystem = zfsFilesystem;
+        this.fileRoot = fileRoot;
+    }
+
+    public Config(String path) {
         File file = new File(path);
         Toml toml = new Toml().read(file);
         this.zfsFilesystem = toml.getString("zfs_filesystem");

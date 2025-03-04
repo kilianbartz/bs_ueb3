@@ -27,12 +27,17 @@ public class Transaction implements Serializable {
 
     public boolean hasConflict() {
         HashMap<String, Long> currentFileTimestamps = computeFileTimestamps();
+        System.out.println("Transaction " + name + ": ------------------");
         for (Map.Entry<String, Long> e : currentFileTimestamps.entrySet()) {
             Long previousTimestamp = fileTimestamps.get(e.getKey());
+            System.out.println(e.getKey() + ": " + previousTimestamp + " / " + e.getValue());
             if (previousTimestamp == null || !previousTimestamp.equals(e.getValue())) {
+                System.out.println("Transaction " + name + " has conflict with: " + e.getKey());
                 return true;
             }
         }
+        System.out.println("Transaction " + name + ": no conflict.");
+        System.out.println("----------------------------------");
         return false;
     }
 
@@ -81,10 +86,10 @@ public class Transaction implements Serializable {
         file.delete();
     }
 
-    public boolean read(String path) {
+    public String read(String path) {
         if (hasConflict()) {
             rollbackSnapshot();
-            return false;
+            return null;
         }
         StringBuilder content = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
@@ -96,7 +101,7 @@ public class Transaction implements Serializable {
             throw new RuntimeException(e);
         }
         System.out.print(content);
-        return true;
+        return content.toString();
     }
 
     private String headPath() {
@@ -141,7 +146,7 @@ public class Transaction implements Serializable {
         try {
             FileUtils.forceDelete(file);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            //ignore
         }
     }
 

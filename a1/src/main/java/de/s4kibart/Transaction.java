@@ -26,11 +26,13 @@ public class Transaction implements Serializable {
     public boolean commit() {
         boolean conflict = false;
         HashMap<String, Long> currentFileTimestamps = computeFileTimestamps();
+        System.out.println("Transaction " + name + ": ------------------");
         for (Map.Entry<String, Long> e : currentFileTimestamps.entrySet()) {
             Long previousTimestamp = fileTimestamps.get(e.getKey());
+            System.out.println(e.getKey() + ": " + previousTimestamp + " / " + e.getValue());
             if (previousTimestamp == null || !previousTimestamp.equals(e.getValue())) {
+                System.out.println("Transaction " + name + " has conflict with: " + e.getKey());
                 conflict = true;
-                System.out.println("Conflict found: " + e.getKey());
                 break;
             }
         }
@@ -38,11 +40,15 @@ public class Transaction implements Serializable {
             rollbackSnapshot();
             return false;
         }
-        
+        System.out.println("Transaction " + name + ": no conflict.");
+        System.out.println("----------------------------------");
+
 //        persist writes and removes
         for (Map.Entry<String, String> e : writes.entrySet()) {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(e.getKey()))) {
                 writer.write(e.getValue());
+                writer.flush();
+                System.out.println("written: " + e.getKey() + ": " + e.getValue());
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
@@ -55,13 +61,20 @@ public class Transaction implements Serializable {
         return true;
     }
 
+    private String headPath() {
+        String fs = cfg.getZfsFilesystem();
+        if (!cfg.getFileRoot().isEmpty())
+            fs += cfg.getFileRoot();
+        return "/" + fs;
+    }
+
     public void write(String path, String content) {
-        writes.put(path, content);
+        writes.put(headPath() + "/" + path, content);
         store();
     }
 
     public void remove(String path) {
-        removes.add(path);
+        removes.add(headPath() + "/" + path);
         store();
     }
 
@@ -86,16 +99,15 @@ public class Transaction implements Serializable {
     private void executeCommand(String[] command) {
         ProcessBuilder processBuilder = new ProcessBuilder(command);
         try {
-            processBuilder.start();
-        } catch (IOException e) {
+            Process process = processBuilder.start();
+            int exitcode = process.waitFor();
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
 
     private String snapshotName() {
         String fs = cfg.getZfsFilesystem();
-        if (!cfg.getFileRoot().isEmpty())
-            fs += cfg.getFileRoot();
         return fs + "@" + name;
     }
 
@@ -104,10 +116,11 @@ public class Transaction implements Serializable {
         removeSnapshot();
         String[] command = {"zfs", "snapshot", snapshotName()};
         executeCommand(command);
+        System.out.println("created snapshot " + snapshotName());
     }
 
     private void rollbackSnapshot() {
-        System.out.println("resetting system...");
+        System.out.println("resetting system to snapshot " + name + "...");
         String[] command = {"zfs", "rollback", snapshotName()};
         executeCommand(command);
         //because the transaction failed, start a new transaction from the new
