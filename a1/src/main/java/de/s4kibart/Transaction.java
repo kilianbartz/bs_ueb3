@@ -51,7 +51,7 @@ public class Transaction implements Serializable {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(e.getKey()))) {
                 writer.write(e.getValue());
                 writer.flush();
-                System.out.println("written: " + e.getKey() + ": " + e.getValue());
+                // System.out.println("written: " + e.getKey() + ": " + e.getValue());
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
@@ -100,10 +100,13 @@ public class Transaction implements Serializable {
     }
 
     private void executeCommand(String[] command) {
+        long start = System.currentTimeMillis();
         ProcessBuilder processBuilder = new ProcessBuilder(command);
         try {
             Process process = processBuilder.start();
             int exitcode = process.waitFor();
+            System.out.println("command " + command[0] + " exited with code " + exitcode + " in "
+                    + (System.currentTimeMillis() - start) + "ms");
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -117,10 +120,10 @@ public class Transaction implements Serializable {
     private void createSnapshot() {
         // zfs does not allow overwriting snapshots, so remove a snapshot of the same
         // name if it exists
-        removeSnapshot();
+        // removeSnapshot();
         String[] command = { "zfs", "snapshot", snapshotName() };
         executeCommand(command);
-        System.out.println("created snapshot " + snapshotName());
+        // System.out.println("created snapshot " + snapshotName());
     }
 
     private void rollbackSnapshot() {
@@ -155,11 +158,11 @@ public class Transaction implements Serializable {
         this.writes = new HashMap<>();
         this.removes = new ArrayList<>();
 
-        System.out.println("Initial state:----------------------");
-        for (Map.Entry<String, Long> e : fileTimestamps.entrySet()) {
-            System.out.println(e.getKey() + ": " + e.getValue());
-        }
-        System.out.println("---------------------------------");
+        // System.out.println("Initial state:----------------------");
+        // for (Map.Entry<String, Long> e : fileTimestamps.entrySet()) {
+        // System.out.println(e.getKey() + ": " + e.getValue());
+        // }
+        // System.out.println("---------------------------------");
 
         createSnapshot();
         store();

@@ -3,6 +3,7 @@ import subprocess
 import sys
 import os
 import rtoml
+from time import time
 
 
 def __eprint(*args, **kwargs):
@@ -42,20 +43,34 @@ class Transaction:
 
         self.transactions_jar = config["transactions_jar"]
 
-    def start(self):
-        execute_command(f"java -jar {self.transactions_jar} start {self.name}")
+    def start(self) -> str:
+        start = time()
+        output = execute_command(f"java -jar {self.transactions_jar} start {self.name}")
+        print(f"Transaction started in {time() - start} seconds")
+        return output
 
     def read(self, filename: str) -> str:
-        return execute_command(
+        start = time()
+        output = execute_command(
             f"java -jar {self.transactions_jar} read {self.name} {filename}",
             ignore_errors=True,
         )
+        print(f"Transaction read in {time() - start} seconds")
+        return output
 
     def write(self, filename: str, content: str) -> str:
-        return execute_command(
+        start = time()
+        output = execute_command(
             f"java -jar {self.transactions_jar} write {self.name} {filename}",
             arg=content,
         )
+        print(f"Transaction write in {time() - start} seconds")
+        return output
 
     def commit(self) -> str:
-        return execute_command(f"java -jar {self.transactions_jar} commit {self.name}")
+        start = time()
+        output = execute_command(
+            f"java -jar {self.transactions_jar} commit {self.name}"
+        )
+        print(f"Transaction commit in {time() - start} seconds")
+        return output

@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 
-public class Transaction implements Serializable {
+public class TransactionV2 implements Serializable {
 
     Config cfg;
     String name;
@@ -146,7 +146,7 @@ public class Transaction implements Serializable {
         try {
             FileUtils.forceDelete(file);
         } catch (IOException e) {
-            //ignore
+            // ignore
         }
     }
 
@@ -160,7 +160,7 @@ public class Transaction implements Serializable {
         return temp;
     }
 
-    public Transaction(Config cfg, String name) {
+    public TransactionV2(Config cfg, String name) {
         this.cfg = cfg;
         this.name = name;
         createSnapshot();
@@ -176,7 +176,7 @@ public class Transaction implements Serializable {
     }
 
     // reload current_transaction.t
-    public Transaction(String name) {
+    public TransactionV2(String name) {
         try {
             FileInputStream fin = new FileInputStream(name);
             ObjectInputStream in = new ObjectInputStream(fin);
