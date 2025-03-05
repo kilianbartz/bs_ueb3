@@ -45,15 +45,16 @@ class Transaction:
     def start(self):
         execute_command(f"java -jar {self.transactions_jar} start {self.name}")
 
-    def read(self, name) -> str:
+    def read(self, filename: str) -> str:
         return execute_command(
-            f"java -jar {self.transactions_jar} read {self.name} {name}",
+            f"java -jar {self.transactions_jar} read {self.name} {filename}",
             ignore_errors=True,
         )
 
-    def write(self, name, content) -> str:
+    def write(self, filename: str, content: str) -> str:
         return execute_command(
-            f"java -jar {self.transactions_jar} write {self.name} {name}", arg=content
+            f"java -jar {self.transactions_jar} write {self.name} {filename}",
+            arg=content,
         )
 
     def commit(self) -> str:
