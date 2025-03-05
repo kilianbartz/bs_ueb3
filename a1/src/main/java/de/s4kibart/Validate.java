@@ -3,6 +3,7 @@ package de.s4kibart;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class Validate {
 
