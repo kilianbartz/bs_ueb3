@@ -140,10 +140,10 @@ public class Transaction implements Serializable {
         long start = System.currentTimeMillis();
         String[] command = {"zfs", "rollback", snapshotName()};
         executeCommand(command);
+        long rollbackTime = System.currentTimeMillis() - start;
         // because the transaction failed, start a new transaction from the new
-        File file = new File(name);
-        file.delete();
-        return System.currentTimeMillis() - start;
+        removeSnapshot();
+        return rollbackTime;
     }
 
     private void removeSnapshot() {
@@ -158,6 +158,8 @@ public class Transaction implements Serializable {
         HashMap<String, Long> temp = new HashMap<>();
         File dir = new File(headPath());
         File[] files = dir.listFiles();
+
+//        silly bugfix because this can be null in rare multithreaded events
         while (files == null)
             files = dir.listFiles();
         for (File file : Objects.requireNonNull(files)) {

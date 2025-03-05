@@ -1,16 +1,12 @@
 package de.s4kibart;
 
-import me.tongfei.progressbar.ProgressBar;
-
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.IntStream;
 
 public class Validate {
 
     private static final Random random = new Random();
-    private static final int TOTAL_ITERATIONS = 1000;
     //    private static final String[] finalNames = {"file1", "file2", "file3", "file4", "file5", "file6", "file7", "file8", "file9", "file10"};
     private static final String[] finalNames = {"file1"};
     private static final Config cfg = new Config("tank", "/v1");
@@ -91,6 +87,12 @@ public class Validate {
     }
 
     public static void main(String[] args) throws IOException {
+        if (args.length != 1) {
+            System.err.println("You have to provide the total number of iterations for each test as argument 1.");
+            System.exit(2);
+        }
+        int TOTAL_ITERATIONS = Integer.parseInt(args[0]);
+
         InputStream is = Validate.class.getResourceAsStream("/sample_text.txt");
         BufferedReader bis = new BufferedReader(new InputStreamReader(is));
         String line;
@@ -100,18 +102,23 @@ public class Validate {
         }
         String content = sb.toString();
 
+        System.out.println("validating using " + TOTAL_ITERATIONS + " iterations...");
         // only writes
+        System.out.println("only write times: --------------------------------");
         for (int i = 1; i <= 4; i++) {
             int iterationsTwoProcesses = TOTAL_ITERATIONS / i;
             Callable<ValidationPair> r = () -> workload_write_single(content, iterationsTwoProcesses);
             executeWithMultipleProcesses(r, i);
         }
+        System.out.println("-------------------------------------");
+        System.out.println("read + write times: --------------------------------");
         // reads_and_writes
         for (int i = 1; i <= 4; i++) {
             int iterationsTwoProcesses = TOTAL_ITERATIONS / i;
             Callable<ValidationPair> r = () -> workload_write_read_single(content, iterationsTwoProcesses);
             executeWithMultipleProcesses(r, i);
         }
+        System.out.println("-------------------------------------");
     }
 }
 
@@ -122,6 +129,6 @@ class ValidationPair {
 
     public ValidationPair(int numCollisions, long totalResetTime) {
         this.numCollisions = numCollisions;
-        avgResetTime = totalResetTime / (double) numCollisions;
+        avgResetTime = numCollisions == 0 ? 0 : totalResetTime / (double) numCollisions;
     }
 }
