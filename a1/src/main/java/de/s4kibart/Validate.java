@@ -20,61 +20,72 @@ public class Validate {
         return s.substring(start, random.nextInt(start + 1, s.length()));
     }
 
-    private static int workload_write_single(String sampleText, int iterations) {
+    private static ValidationPair workload_write_single(String sampleText, int iterations) {
         int collisions = 0;
+        long totalResetTime = 0;
         for (int i = 0; i < iterations; i++) {
             String fileName = finalNames[random.nextInt(0, finalNames.length)];
             Transaction t = new Transaction(cfg, UUID.randomUUID().toString());
             t.write(fileName, getRandomString(sampleText));
-            if (!t.commit())
+            long resetTime = t.commit();
+            if (resetTime > 0) {
                 collisions++;
+                totalResetTime += resetTime;
+            }
         }
-        return collisions;
+        return new ValidationPair(collisions, totalResetTime);
     }
 
-    private static int workload_write_read_single(String sampleText, int iterations) {
+    private static ValidationPair workload_write_read_single(String sampleText, int iterations) {
         int collisions = 0;
+        long totalResetTime = 0;
         for (int i = 0; i < iterations; i++) {
             String fileName = finalNames[random.nextInt(0, finalNames.length)];
             if (random.nextFloat() < 0.5) {
                 // write
                 Transaction t = new Transaction(cfg, UUID.randomUUID().toString());
                 t.write(fileName, getRandomString(sampleText));
-                if (!t.commit())
+                long resetTime = t.commit();
+                if (resetTime > 0) {
                     collisions++;
+                    totalResetTime += resetTime;
+                }
             } else {
                 // read
                 Transaction t = new Transaction(cfg, UUID.randomUUID().toString());
-                if (!t.read(fileName))
+                long resetTime = t.read(fileName);
+                if (resetTime > 0) {
                     collisions++;
-                t.commit();
-            }
+                    totalResetTime += resetTime;
+                    t.commit();
+                }
 
+            }
         }
-        return collisions;
+        return new ValidationPair(collisions, totalResetTime);
     }
 
-    private static int executeWithMultipleProcesses(Callable<Integer> c, int numProcesses) {
+    private static void executeWithMultipleProcesses(Callable<ValidationPair> c, int numProcesses) {
         try {
             final ExecutorService service = Executors.newFixedThreadPool(numProcesses);
             long start = System.currentTimeMillis();
-            List<Callable<Integer>> callables = new ArrayList<>();
+            List<Callable<ValidationPair>> callables = new ArrayList<>();
             for (int i = 0; i < numProcesses; i++) {
                 callables.add(c);
             }
-            List<Future<Integer>> futures = service.invokeAll(callables);
-            int collisions = futures.stream().mapToInt(e -> {
-                try {
-                    return e.get();
-                } catch (InterruptedException | ExecutionException ex) {
-                    throw new RuntimeException(ex);
-                }
-            }).sum();
+            List<Future<ValidationPair>> futures = service.invokeAll(callables);
+            int collisions = 0;
+            double avgTime = 0;
+            for (Future<ValidationPair> f : futures) {
+                ValidationPair p = f.get();
+                collisions += p.numCollisions;
+                avgTime += p.avgResetTime;
+            }
             double duration = (System.currentTimeMillis() - start) / 1000.;
-            System.out.println(numProcesses + " processes took " + duration + "s (" + collisions + " collisions).");
+            avgTime = avgTime / numProcesses;
+            System.out.println(numProcesses + " processes took " + duration + "s (" + collisions + " collisions, average reset time: " + avgTime + "ms).");
             service.shutdown();
-            return collisions;
-        } catch (InterruptedException e) {
+        } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
     }
@@ -92,16 +103,25 @@ public class Validate {
         // only writes
         for (int i = 1; i <= 4; i++) {
             int iterationsTwoProcesses = TOTAL_ITERATIONS / i;
-            Callable<Integer> r = () -> workload_write_single(content, iterationsTwoProcesses);
-            int collisions = executeWithMultipleProcesses(r, i);
-            System.out.println("(" + collisions + " collisions)");
+            Callable<ValidationPair> r = () -> workload_write_single(content, iterationsTwoProcesses);
+            executeWithMultipleProcesses(r, i);
         }
         // reads_and_writes
         for (int i = 1; i <= 4; i++) {
             int iterationsTwoProcesses = TOTAL_ITERATIONS / i;
-            Callable<Integer> r = () -> workload_write_read_single(content, iterationsTwoProcesses);
-            int collisions = executeWithMultipleProcesses(r, i);
-            System.out.println("(" + collisions + " collisions)");
+            Callable<ValidationPair> r = () -> workload_write_read_single(content, iterationsTwoProcesses);
+            executeWithMultipleProcesses(r, i);
         }
+    }
+}
+
+
+class ValidationPair {
+    public int numCollisions;
+    public double avgResetTime;
+
+    public ValidationPair(int numCollisions, long totalResetTime) {
+        this.numCollisions = numCollisions;
+        avgResetTime = totalResetTime / (double) numCollisions;
     }
 }

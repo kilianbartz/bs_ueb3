@@ -15,8 +15,8 @@ public class TestCase1 {
 
         Transaction t2 = new Transaction(cfg, "t2");
         t2.write("a.txt", "content_t2");
-        assert t2.commit();
-        assert !t.commit();
+        assert t2.commit() < 0;
+        assert t.commit() > 0;
         File file = new File("/tank/v1/a.txt");
         System.out.println(file.exists());
         assert !file.exists();

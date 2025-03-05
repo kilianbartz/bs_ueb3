@@ -46,11 +46,11 @@ public class Transaction implements Serializable {
         return false;
     }
 
-    public boolean commit() {
-        if (hasConflicts()) {
-            rollbackSnapshot();
-            return false;
-        }
+    //    returns rollback time if fails; else -1
+    public long commit() {
+        if (hasConflicts())
+            return rollbackSnapshot();
+
         if (verbose) {
             System.out.println("Transaction " + name + ": no conflict.");
             System.out.println("----------------------------------");
@@ -71,7 +71,7 @@ public class Transaction implements Serializable {
             file.delete();
         }
         removeSnapshot();
-        return true;
+        return -1;
     }
 
     private String headPath() {
@@ -91,10 +91,10 @@ public class Transaction implements Serializable {
         store();
     }
 
-    public boolean read(String path) {
+    //    returns rollback time if fails; else -1
+    public long read(String path) {
         if (hasConflicts()) {
-            rollbackSnapshot();
-            return false;
+            return rollbackSnapshot();
         }
         StringBuilder content = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new FileReader(headPath() + "/" + path))) {
@@ -107,18 +107,14 @@ public class Transaction implements Serializable {
         }
         if (verbose)
             System.out.print(content);
-        return true;
+        return -1;
     }
 
     private void executeCommand(String[] command) {
-        long start = System.currentTimeMillis();
         ProcessBuilder processBuilder = new ProcessBuilder(command);
         try {
             Process process = processBuilder.start();
             int exitcode = process.waitFor();
-            if (verbose)
-                System.out.println("command " + command[0] + " exited with code " + exitcode + " in "
-                        + (System.currentTimeMillis() - start) + "ms");
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -138,14 +134,16 @@ public class Transaction implements Serializable {
         // System.out.println("created snapshot " + snapshotName());
     }
 
-    private void rollbackSnapshot() {
+    private long rollbackSnapshot() {
         if (verbose)
             System.out.println("resetting system to snapshot " + name + "...");
+        long start = System.currentTimeMillis();
         String[] command = {"zfs", "rollback", snapshotName()};
         executeCommand(command);
         // because the transaction failed, start a new transaction from the new
         File file = new File(name);
         file.delete();
+        return System.currentTimeMillis() - start;
     }
 
     private void removeSnapshot() {
