@@ -23,27 +23,30 @@ public class Transaction implements Serializable {
         }
     }
 
-    public boolean commit() {
-        boolean conflict = false;
+    private boolean hasConflicts() {
         HashMap<String, Long> currentFileTimestamps = computeFileTimestamps();
-        System.out.println("Transaction " + name + ": ------------------");
+        // System.out.println("Transaction " + name + ": ------------------");
         for (Map.Entry<String, Long> e : currentFileTimestamps.entrySet()) {
             Long previousTimestamp = fileTimestamps.get(e.getKey());
-            System.out.println(e.getKey() + ": " + previousTimestamp + " / " + e.getValue());
+            // System.out.println(e.getKey() + ": " + previousTimestamp + " / " +
+            // e.getValue());
             if (previousTimestamp == null || !previousTimestamp.equals(e.getValue())) {
                 System.out.println("Transaction " + name + " has conflict with: " + e.getKey());
-                conflict = true;
-                break;
+                return true;
             }
         }
-        if (conflict) {
+        return false;
+    }
+
+    public boolean commit() {
+        if (hasConflicts()) {
             rollbackSnapshot();
             return false;
         }
         System.out.println("Transaction " + name + ": no conflict.");
         System.out.println("----------------------------------");
 
-//        persist writes and removes
+        // persist writes and removes
         for (Map.Entry<String, String> e : writes.entrySet()) {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(e.getKey()))) {
                 writer.write(e.getValue());
@@ -79,12 +82,12 @@ public class Transaction implements Serializable {
     }
 
     public boolean read(String path) {
-        if (fileHasConflicts(path)) {
+        if (hasConflicts()) {
             rollbackSnapshot();
             return false;
         }
         StringBuilder content = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(headPath() + "/" + path))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 content.append(line).append(System.lineSeparator());
@@ -112,23 +115,27 @@ public class Transaction implements Serializable {
     }
 
     private void createSnapshot() {
-        //zfs does not allow overwriting snapshots, so remove a snapshot of the same name if it exists
+        // zfs does not allow overwriting snapshots, so remove a snapshot of the same
+        // name if it exists
         removeSnapshot();
-        String[] command = {"zfs", "snapshot", snapshotName()};
+        String[] command = { "zfs", "snapshot", snapshotName() };
         executeCommand(command);
         System.out.println("created snapshot " + snapshotName());
     }
 
     private void rollbackSnapshot() {
         System.out.println("resetting system to snapshot " + name + "...");
-        String[] command = {"zfs", "rollback", snapshotName()};
+        String[] command = { "zfs", "rollback", snapshotName() };
         executeCommand(command);
-        //because the transaction failed, start a new transaction from the new
+        // because the transaction failed, start a new transaction from the new
     }
 
     private void removeSnapshot() {
-        String[] command = {"zfs", "destroy", snapshotName()};
+        String[] command = { "zfs", "destroy", snapshotName() };
         executeCommand(command);
+        // also remove the transaction file
+        File file = new File(name);
+        file.delete();
     }
 
     private HashMap<String, Long> computeFileTimestamps() {
@@ -139,14 +146,6 @@ public class Transaction implements Serializable {
             temp.put(file.getPath(), file.lastModified());
         }
         return temp;
-    }
-
-    //only checks for conflicts on a single file
-    private boolean fileHasConflicts(String path) {
-        File file = new File(path);
-        boolean conflict = file.lastModified() != fileTimestamps.get(path);
-        System.out.println(path + " has conflict: " + conflict);
-        return conflict;
     }
 
     public Transaction(Config cfg, String name) {
