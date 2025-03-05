@@ -6,7 +6,7 @@ all: package
 # Target to run mvn clean package
 package:
 	mvn clean package
-	cp target/a1-1.0.jar ../a2_a3/v1.jar
+	cp target/a1-1.0.jar ../a2/v1.jar
 
 # Clean target (optional, as Maven handles cleaning)
 clean:

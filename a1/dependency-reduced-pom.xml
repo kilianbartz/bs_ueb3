@@ -11,14 +11,31 @@
         <version>3.2.4</version>
         <executions>
           <execution>
+            <id>main-jar</id>
             <phase>package</phase>
             <goals>
               <goal>shade</goal>
             </goals>
             <configuration>
+              <finalName>${project.artifactId}-${project.version}</finalName>
               <transformers>
                 <transformer>
                   <mainClass>de.s4kibart.Main</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+          <execution>
+            <id>validate-jar</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <finalName>${project.artifactId}-validate-${project.version}</finalName>
+              <transformers>
+                <transformer>
+                  <mainClass>de.s4kibart.Validate</mainClass>
                 </transformer>
               </transformers>
             </configuration>

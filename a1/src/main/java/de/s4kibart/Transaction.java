@@ -1,6 +1,8 @@
 package de.s4kibart;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 public class Transaction implements Serializable {
@@ -10,6 +12,11 @@ public class Transaction implements Serializable {
     HashMap<String, Long> fileTimestamps;
     HashMap<String, String> writes;
     List<String> removes;
+    boolean verbose = false;
+
+    public void setVerbose(boolean verbose) {
+        this.verbose = verbose;
+    }
 
     public void store() {
         try {
@@ -31,7 +38,8 @@ public class Transaction implements Serializable {
             // System.out.println(e.getKey() + ": " + previousTimestamp + " / " +
             // e.getValue());
             if (previousTimestamp == null || !previousTimestamp.equals(e.getValue())) {
-                System.out.println("Transaction " + name + " has conflict with: " + e.getKey());
+                if (verbose)
+                    System.out.println("Transaction " + name + " has conflict with: " + e.getKey());
                 return true;
             }
         }
@@ -43,8 +51,10 @@ public class Transaction implements Serializable {
             rollbackSnapshot();
             return false;
         }
-        System.out.println("Transaction " + name + ": no conflict.");
-        System.out.println("----------------------------------");
+        if (verbose) {
+            System.out.println("Transaction " + name + ": no conflict.");
+            System.out.println("----------------------------------");
+        }
 
         // persist writes and removes
         for (Map.Entry<String, String> e : writes.entrySet()) {
@@ -95,7 +105,8 @@ public class Transaction implements Serializable {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        System.out.print(content);
+        if (verbose)
+            System.out.print(content);
         return true;
     }
 
@@ -105,8 +116,9 @@ public class Transaction implements Serializable {
         try {
             Process process = processBuilder.start();
             int exitcode = process.waitFor();
-            System.out.println("command " + command[0] + " exited with code " + exitcode + " in "
-                    + (System.currentTimeMillis() - start) + "ms");
+            if (verbose)
+                System.out.println("command " + command[0] + " exited with code " + exitcode + " in "
+                        + (System.currentTimeMillis() - start) + "ms");
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -121,20 +133,23 @@ public class Transaction implements Serializable {
         // zfs does not allow overwriting snapshots, so remove a snapshot of the same
         // name if it exists
         // removeSnapshot();
-        String[] command = { "zfs", "snapshot", snapshotName() };
+        String[] command = {"zfs", "snapshot", snapshotName()};
         executeCommand(command);
         // System.out.println("created snapshot " + snapshotName());
     }
 
     private void rollbackSnapshot() {
-        System.out.println("resetting system to snapshot " + name + "...");
-        String[] command = { "zfs", "rollback", snapshotName() };
+        if (verbose)
+            System.out.println("resetting system to snapshot " + name + "...");
+        String[] command = {"zfs", "rollback", snapshotName()};
         executeCommand(command);
         // because the transaction failed, start a new transaction from the new
+        File file = new File(name);
+        file.delete();
     }
 
     private void removeSnapshot() {
-        String[] command = { "zfs", "destroy", snapshotName() };
+        String[] command = {"zfs", "destroy", snapshotName()};
         executeCommand(command);
         // also remove the transaction file
         File file = new File(name);
@@ -143,9 +158,11 @@ public class Transaction implements Serializable {
 
     private HashMap<String, Long> computeFileTimestamps() {
         HashMap<String, Long> temp = new HashMap<>();
-        String fsRoot = "/" + cfg.getZfsFilesystem() + this.cfg.getFileRoot();
-        File dir = new File(fsRoot);
-        for (File file : Objects.requireNonNull(dir.listFiles())) {
+        File dir = new File(headPath());
+        File[] files = dir.listFiles();
+        while (files == null)
+            files = dir.listFiles();
+        for (File file : Objects.requireNonNull(files)) {
             temp.put(file.getPath(), file.lastModified());
         }
         return temp;
@@ -158,12 +175,13 @@ public class Transaction implements Serializable {
         this.writes = new HashMap<>();
         this.removes = new ArrayList<>();
 
-        // System.out.println("Initial state:----------------------");
-        // for (Map.Entry<String, Long> e : fileTimestamps.entrySet()) {
-        // System.out.println(e.getKey() + ": " + e.getValue());
-        // }
-        // System.out.println("---------------------------------");
-
+        if (verbose) {
+            System.out.println("Initial state:----------------------");
+            for (Map.Entry<String, Long> e : fileTimestamps.entrySet()) {
+                System.out.println(e.getKey() + ": " + e.getValue());
+            }
+            System.out.println("---------------------------------");
+        }
         createSnapshot();
         store();
     }
