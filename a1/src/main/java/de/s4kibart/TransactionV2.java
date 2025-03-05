@@ -108,12 +108,12 @@ public class TransactionV2 implements Serializable {
         String fs = cfg.getZfsFilesystem();
         if (!cfg.getFileRoot().isEmpty())
             fs += cfg.getFileRoot();
-        return fs;
+        return "/" + fs;
     }
 
     private String snapshotTempDir() {
         String fs = cfg.getZfsFilesystem();
-        return fs + "/" + name;
+        return "/" + fs + "/" + name;
     }
 
     private void removeSnapshot() {
