@@ -1,17 +1,13 @@
 package de.s4kibart;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 
-public class Transaction implements Serializable {
+public class TransactionNoBuffering implements Serializable {
 
     Config cfg;
     String name;
     HashMap<String, Long> fileTimestamps;
-    HashMap<String, String> writes;
-    List<String> removes;
     boolean verbose = false;
     boolean startedCommit = false;
 
@@ -58,21 +54,6 @@ public class Transaction implements Serializable {
             System.out.println("Transaction " + name + ": no conflict.");
             System.out.println("----------------------------------");
         }
-
-        // persist writes and removes
-        for (Map.Entry<String, String> e : writes.entrySet()) {
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(e.getKey()))) {
-                writer.write(e.getValue());
-                writer.flush();
-                // System.out.println("written: " + e.getKey() + ": " + e.getValue());
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
-            }
-        }
-        for (String f : removes) {
-            File file = new File(f);
-            file.delete();
-        }
         removeSnapshot();
         return -1;
     }
@@ -85,13 +66,24 @@ public class Transaction implements Serializable {
     }
 
     public void write(String path, String content) {
-        writes.put(headPath() + "/" + path, content);
-        store();
+        path = headPath() + "/" + path;
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(path))) {
+            writer.write(content);
+            writer.flush();
+            // update last modified time
+            File file = new File(path);
+            fileTimestamps.put(path, file.lastModified());
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     public void remove(String path) {
-        removes.add(headPath() + "/" + path);
-        store();
+        path = headPath() + "/" + path;
+        File file = new File(path);
+        file.delete();
+        // update last modified time
+        fileTimestamps.remove(path);
     }
 
     //    returns rollback time if fails; else -1
@@ -99,6 +91,7 @@ public class Transaction implements Serializable {
         if (hasConflicts()) {
             return rollbackSnapshot();
         }
+        //read the content of the file to output it
         StringBuilder content = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new FileReader(headPath() + "/" + path))) {
             String line;
@@ -128,17 +121,32 @@ public class Transaction implements Serializable {
         return fs + "@" + name;
     }
 
+    private void createSnapshot() {
+        // zfs does not allow overwriting snapshots, so remove a snapshot of the same
+        // name if it exists
+        // removeSnapshot();
+        String[] command = {"zfs", "snapshot", snapshotName()};
+        executeCommand(command);
+        // System.out.println("created snapshot " + snapshotName());
+    }
+
     private long rollbackSnapshot() {
         if (verbose)
             System.out.println("resetting system to snapshot " + name + "...");
-        // because no actual writes have been made yet, just abort
+        long start = System.currentTimeMillis();
+        String[] command = {"zfs", "rollback", snapshotName()};
+        executeCommand(command);
+        long rollbackTime = System.currentTimeMillis() - start;
+        // because the transaction failed, start a new transaction from the new
         removeSnapshot();
-        return 1;
+        return rollbackTime;
     }
 
     private void removeSnapshot() {
-        // remove the transaction file
-        File file = new File(name + ".t");
+        String[] command = {"zfs", "destroy", snapshotName()};
+        executeCommand(command);
+        // also remove the transaction file
+        File file = new File(name);
         file.delete();
     }
 
@@ -156,12 +164,10 @@ public class Transaction implements Serializable {
         return temp;
     }
 
-    public Transaction(Config cfg, String name) {
+    public TransactionNoBuffering(Config cfg, String name) {
         this.cfg = cfg;
         this.name = name;
         this.fileTimestamps = computeFileTimestamps();
-        this.writes = new HashMap<>();
-        this.removes = new ArrayList<>();
 
         if (verbose) {
             System.out.println("Initial state:----------------------");
@@ -170,13 +176,12 @@ public class Transaction implements Serializable {
             }
             System.out.println("---------------------------------");
         }
-        //this implementation does not need zfs snapshots
-        // createSnapshot();
+        createSnapshot();
         store();
     }
 
     // reload current_transaction.t
-    public Transaction(String name) {
+    public TransactionNoBuffering(String name) {
         try {
             FileInputStream fin = new FileInputStream(name + ".t");
             ObjectInputStream in = new ObjectInputStream(fin);
@@ -185,8 +190,6 @@ public class Transaction implements Serializable {
             this.cfg = t.cfg;
             this.name = t.name;
             this.fileTimestamps = t.fileTimestamps;
-            this.writes = t.writes;
-            this.removes = t.removes;
             this.startedCommit = t.startedCommit;
 
             in.close();

@@ -40,6 +40,21 @@
               </transformers>
             </configuration>
           </execution>
+          <execution>
+            <id>validatev2-jar</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <finalName>${project.artifactId}-validate-${project.version}</finalName>
+              <transformers>
+                <transformer>
+                  <mainClass>de.s4kibart.ValidateV2</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
     </plugins>
