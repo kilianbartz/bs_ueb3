@@ -3,7 +3,7 @@
 # Define source and destination paths
 SOURCE_JAR = target/a1-1.0.jar
 DEST_JAR = ../a2/v1.jar
-VALIDATE_JAR = target/a1-validatev2-1.0.jar
+VALIDATE_JAR = target/a1-validate-1.0.jar
 VALIDATE_ITERATIONS = 3000
 
 # Default target
