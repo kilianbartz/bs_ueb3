@@ -5,12 +5,12 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-public class Validate {
+public class ValidateV2 {
 
     private static final Random random = new Random();
-    private static final String[] finalNames = {"file1", "file2", "file3", "file4", "file5", "file6", "file7", "file8", "file9", "file10"};
-    //    private static final String[] finalNames = {"file1"};
-//    private static final String[] finalNames = {"file1", "file2", "file3", "file4", "file5"};
+    //    private static final String[] finalNames = {"file1", "file2", "file3", "file4", "file5", "file6", "file7", "file8", "file9", "file10"};
+    private static final String[] finalNames = {"file1"};
+    //    private static final String[] finalNames = {"file1", "file2", "file3", "file4", "file5"};
     private static final Config cfg = new Config("tank", "/v1");
 
     private static String getRandomString(String s) {
@@ -23,12 +23,11 @@ public class Validate {
         long totalResetTime = 0;
         for (int i = 0; i < iterations; i++) {
             String fileName = finalNames[random.nextInt(0, finalNames.length)];
-            Transaction t = new Transaction(cfg, UUID.randomUUID().toString());
+            TransactionV2 t = new TransactionV2(cfg, UUID.randomUUID().toString());
             t.write(fileName, getRandomString(sampleText));
-            long resetTime = t.commit();
-            if (resetTime > 0) {
+            if (!t.commit()) {
                 collisions++;
-                totalResetTime += resetTime;
+                totalResetTime += 0;
             }
         }
         return new ValidationPair(collisions, totalResetTime);
@@ -41,20 +40,18 @@ public class Validate {
             String fileName = finalNames[random.nextInt(0, finalNames.length)];
             if (random.nextFloat() < 0.5) {
                 // write
-                Transaction t = new Transaction(cfg, UUID.randomUUID().toString());
+                TransactionV2 t = new TransactionV2(cfg, UUID.randomUUID().toString());
                 t.write(fileName, getRandomString(sampleText));
-                long resetTime = t.commit();
-                if (resetTime > 0) {
+                if (!t.commit()) {
                     collisions++;
-                    totalResetTime += resetTime;
+                    totalResetTime += 0;
                 }
             } else {
                 // read
-                Transaction t = new Transaction(cfg, UUID.randomUUID().toString());
-                long resetTime = t.read(fileName);
-                if (resetTime > 0) {
+                TransactionV2 t = new TransactionV2(cfg, UUID.randomUUID().toString());
+                if (t.read(fileName) == null) {
                     collisions++;
-                    totalResetTime += resetTime;
+                    totalResetTime += 0;
                     t.commit();
                 }
 
@@ -121,16 +118,5 @@ public class Validate {
             executeWithMultipleProcesses(r, i);
         }
         System.out.println("-------------------------------------");
-    }
-}
-
-
-class ValidationPair {
-    public int numCollisions;
-    public double avgResetTime;
-
-    public ValidationPair(int numCollisions, long totalResetTime) {
-        this.numCollisions = numCollisions;
-        avgResetTime = numCollisions == 0 ? 0 : totalResetTime / (double) numCollisions;
     }
 }

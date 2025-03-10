@@ -13,6 +13,7 @@ public class Transaction implements Serializable {
     HashMap<String, String> writes;
     List<String> removes;
     boolean verbose = false;
+    boolean startedCommit = false;
 
     public void setVerbose(boolean verbose) {
         this.verbose = verbose;
@@ -20,7 +21,7 @@ public class Transaction implements Serializable {
 
     public void store() {
         try {
-            FileOutputStream fileOutputStream = new FileOutputStream(name);
+            FileOutputStream fileOutputStream = new FileOutputStream(name + ".t");
             ObjectOutputStream out = new ObjectOutputStream(fileOutputStream);
             out.writeObject(this);
             out.close();
@@ -48,6 +49,8 @@ public class Transaction implements Serializable {
 
     //    returns rollback time if fails; else -1
     public long commit() {
+        startedCommit = true;
+        store();
         if (hasConflicts())
             return rollbackSnapshot();
 
@@ -189,7 +192,7 @@ public class Transaction implements Serializable {
     // reload current_transaction.t
     public Transaction(String name) {
         try {
-            FileInputStream fin = new FileInputStream(name);
+            FileInputStream fin = new FileInputStream(name + ".t");
             ObjectInputStream in = new ObjectInputStream(fin);
             Transaction t = (Transaction) in.readObject();
 
@@ -198,6 +201,7 @@ public class Transaction implements Serializable {
             this.fileTimestamps = t.fileTimestamps;
             this.writes = t.writes;
             this.removes = t.removes;
+            this.startedCommit = t.startedCommit;
 
             in.close();
             fin.close();

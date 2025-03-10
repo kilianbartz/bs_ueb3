@@ -6,9 +6,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.concurrent.Callable;
+import java.util.stream.Stream;
 
 public class Main {
 
@@ -36,6 +38,7 @@ public class Main {
         commandLine.addSubcommand(new TransactionWriteCommand());
         commandLine.addSubcommand(new TransactionRemoveCommand());
         commandLine.addSubcommand(new TransactionReadCommand());
+        commandLine.addSubcommand(new TransactionRedoCommand());
 
         // Execute the command
         int exitCode = commandLine.execute(args);
@@ -131,5 +134,24 @@ class TransactionReadCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         return new Transaction(name).read(path) > 0 ? 1 : 0;
+    }
+}
+
+@CommandLine.Command(name = "redo", mixinStandardHelpOptions = true, version = "1.0", description = "Reads a file as part of a named transaction")
+class TransactionRedoCommand implements Runnable {
+
+    @Override
+    public void run() {
+        try (Stream<Path> files = Files.walk(Paths.get("."))) {
+            files.filter(Files::isRegularFile)
+                    .filter(p -> p.toString().endsWith(".t"))  // replace .txt with your extension
+                    .forEach(f -> {
+                        Transaction t = new Transaction(f.getFileName().toString());
+                        if (t.startedCommit)
+                            t.commit();
+                    });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
