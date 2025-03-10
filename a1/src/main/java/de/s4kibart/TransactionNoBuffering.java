@@ -146,7 +146,7 @@ public class TransactionNoBuffering implements Serializable {
         String[] command = {"zfs", "destroy", snapshotName()};
         executeCommand(command);
         // also remove the transaction file
-        File file = new File(name);
+        File file = new File(name + ".t");
         file.delete();
     }
 

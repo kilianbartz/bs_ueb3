@@ -27,13 +27,15 @@ public class TestCase1 {
     void testImpl2() {
         Config cfg = new Config("tank", "/v2");
         TransactionNoBuffering t = new TransactionNoBuffering(cfg, "t1");
+        t.setVerbose(true);
         t.write("a.txt", "content_t1");
 
         TransactionNoBuffering t2 = new TransactionNoBuffering(cfg, "t2");
+        t2.setVerbose(true);
         t2.write("a.txt", "content_t2");
         assert t2.commit() < 0;
         assert t.commit() > 0;
-        File file = new File("/tank/v1/a.txt");
+        File file = new File("/tank/v2/a.txt");
         System.out.println(file.exists());
         assert !file.exists();
     }
