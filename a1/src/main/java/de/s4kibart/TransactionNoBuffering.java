@@ -99,9 +99,9 @@ public class TransactionNoBuffering implements Serializable {
     public long read(String path) {
         path = headPath() + "/" + path;
         relevantFiles.add(path);
-        if (hasConflicts()) {
-            return rollbackSnapshot();
-        }
+        // if (hasConflicts()) {
+        // return rollbackSnapshot();
+        // }
         // read the content of the file to output it
         StringBuilder content = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new FileReader(path))) {

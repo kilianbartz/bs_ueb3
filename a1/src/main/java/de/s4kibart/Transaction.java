@@ -112,9 +112,9 @@ public class Transaction implements Serializable {
     public long read(String path) {
         path = headPath() + "/" + path;
         relevantFiles.add(path);
-        if (hasConflicts()) {
-            return rollbackSnapshot();
-        }
+        // if (hasConflicts()) {
+        // return rollbackSnapshot();
+        // }
         StringBuilder content = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
             String line;
