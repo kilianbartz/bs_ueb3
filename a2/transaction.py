@@ -48,7 +48,7 @@ class Transaction:
         output = execute_command(
             f"java -jar {self.transactions_jar} start -v {self.name}"
         )
-        print(f"Transaction started in {time() - start} seconds")
+        # print(f"Transaction started in {time() - start} seconds")
         return output
 
     def read(self, filename: str) -> str:
@@ -57,7 +57,7 @@ class Transaction:
             f"java -jar {self.transactions_jar} read {self.name} {filename}",
             ignore_errors=True,
         )
-        print(f"Transaction read in {time() - start} seconds")
+        # print(f"Transaction read in {time() - start} seconds")
         return output
 
     def write(self, filename: str, content: str) -> str:
@@ -66,7 +66,7 @@ class Transaction:
             f"java -jar {self.transactions_jar} write {self.name} {filename}",
             arg=content,
         )
-        print(f"Transaction write in {time() - start} seconds")
+        # print(f"Transaction write in {time() - start} seconds")
         return output
 
     def commit(self) -> str:
@@ -74,5 +74,5 @@ class Transaction:
         output = execute_command(
             f"java -jar {self.transactions_jar} commit {self.name}"
         )
-        print(f"Transaction commit in {time() - start} seconds")
+        # print(f"Transaction commit in {time() - start} seconds")
         return output

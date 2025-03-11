@@ -14,6 +14,8 @@ public class TransactionNoBuffering implements Serializable {
 
     public void setVerbose(boolean verbose) {
         this.verbose = verbose;
+        System.out.println("Set verbose to " + verbose);
+        store();
     }
 
     public void store() {
@@ -202,6 +204,7 @@ public class TransactionNoBuffering implements Serializable {
             this.fileTimestamps = t.fileTimestamps;
             this.startedCommit = t.startedCommit;
             this.relevantFiles = t.relevantFiles;
+            this.verbose = t.verbose;
 
             in.close();
             fin.close();

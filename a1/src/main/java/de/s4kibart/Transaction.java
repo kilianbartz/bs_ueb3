@@ -18,6 +18,8 @@ public class Transaction implements Serializable {
 
     public void setVerbose(boolean verbose) {
         this.verbose = verbose;
+        System.out.println("Set verbose to " + verbose);
+        store();
     }
 
     public void store() {
@@ -110,27 +112,12 @@ public class Transaction implements Serializable {
             while ((line = reader.readLine()) != null) {
                 content.append(line).append(System.lineSeparator());
             }
+            if (verbose)
+                System.out.print(content);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        if (verbose)
-            System.out.print(content);
         return -1;
-    }
-
-    private void executeCommand(String[] command) {
-        ProcessBuilder processBuilder = new ProcessBuilder(command);
-        try {
-            Process process = processBuilder.start();
-            int exitcode = process.waitFor();
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private String snapshotName() {
-        String fs = cfg.getZfsFilesystem();
-        return fs + "@" + name;
     }
 
     private long rollbackSnapshot() {
@@ -168,14 +155,6 @@ public class Transaction implements Serializable {
         this.writes = new HashMap<>();
         this.removes = new ArrayList<>();
         this.relevantFiles = new ArrayList<>();
-
-        if (verbose) {
-            System.out.println("Initial state:----------------------");
-            for (Map.Entry<String, Long> e : fileTimestamps.entrySet()) {
-                System.out.println(e.getKey() + ": " + e.getValue());
-            }
-            System.out.println("---------------------------------");
-        }
         // this implementation does not need zfs snapshots
         // createSnapshot();
         store();
@@ -195,6 +174,7 @@ public class Transaction implements Serializable {
             this.removes = t.removes;
             this.startedCommit = t.startedCommit;
             this.relevantFiles = t.relevantFiles;
+            this.verbose = t.verbose;
 
             in.close();
             fin.close();

@@ -6,7 +6,7 @@ def main():
 
     # start a transaction
     transaction = Transaction()
-    transaction.start()
+    print(transaction.start())
 
     # construct entry
     name = input("Name of your idea: ")
