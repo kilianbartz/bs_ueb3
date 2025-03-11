@@ -19,9 +19,9 @@ def execute_command(cmd, arg="", ignore_errors=False):
         return str(result, "utf-8")
     except subprocess.CalledProcessError as e:
         if ignore_errors:
-            return ""
+            return str(e.stdout, "utf-8")
         else:
-            __eprint(f"{cmd} let to an error {e}. Terminating...")
+            __eprint(f"{cmd} let to an error: {e}. Terminating...")
             sys.exit(1)
 
 
@@ -72,7 +72,7 @@ class Transaction:
     def commit(self) -> str:
         start = time()
         output = execute_command(
-            f"java -jar {self.transactions_jar} commit {self.name}"
+            f"java -jar {self.transactions_jar} commit {self.name}", ignore_errors=True
         )
         # print(f"Transaction commit in {time() - start} seconds")
         return output

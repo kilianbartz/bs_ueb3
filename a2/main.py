@@ -1,5 +1,7 @@
 import json
 from transaction import Transaction
+import urllib.parse
+filename = "My Great Idea"
 
 
 def main():
@@ -10,6 +12,7 @@ def main():
 
     # construct entry
     name = input("Name of your idea: ")
+    name = urllib.parse.quote(name)
 
     # check if entry already exists; if yes: load previous values as default
 
@@ -18,9 +21,12 @@ def main():
 
     read_output = transaction.read(name)
     if read_output != "":
-        old_values = json.loads(read_output)
-        default_idea = f" ({old_values['idea']})"
-        default_comments = f" ({old_values['comments']})"
+        try:
+            old_values = json.loads(read_output)
+            default_idea = f" ({old_values['idea']})"
+            default_comments = f" ({old_values['comments']})"
+        except json.JSONDecodeError as e:
+            pass
 
     idea = input(f"Description of your idea{default_idea}: ")
     line = "a"

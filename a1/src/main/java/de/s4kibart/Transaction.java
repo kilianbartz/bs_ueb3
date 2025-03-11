@@ -38,8 +38,11 @@ public class Transaction implements Serializable {
         HashMap<String, Long> currentFileTimestamps = computeFileTimestamps();
         // System.out.println("Transaction " + name + ": ------------------");
         for (String path : relevantFiles) {
+            System.out.println("checking " + path);
             Long previousTimestamp = fileTimestamps.get(path);
             Long currentTimeStamp = currentFileTimestamps.get(path);
+            if (previousTimestamp == null && currentTimeStamp == null)
+                continue;
             if (previousTimestamp == null ^ currentTimeStamp == null) {
                 if (verbose)
                     System.out.println("Transaction " + name + " has conflict with: " + path);
@@ -92,22 +95,28 @@ public class Transaction implements Serializable {
     }
 
     public void write(String path, String content) {
-        writes.put(headPath() + "/" + path, content);
+        path = headPath() + "/" + path;
+        relevantFiles.add(path);
+        writes.put(path, content);
         store();
     }
 
     public void remove(String path) {
-        removes.add(headPath() + "/" + path);
+        path = headPath() + "/" + path;
+        relevantFiles.add(path);
+        removes.add(path);
         store();
     }
 
     // returns rollback time if fails; else -1
     public long read(String path) {
+        path = headPath() + "/" + path;
+        relevantFiles.add(path);
         if (hasConflicts()) {
             return rollbackSnapshot();
         }
         StringBuilder content = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new FileReader(headPath() + "/" + path))) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 content.append(line).append(System.lineSeparator());
@@ -157,6 +166,9 @@ public class Transaction implements Serializable {
         this.relevantFiles = new ArrayList<>();
         // this implementation does not need zfs snapshots
         // createSnapshot();
+        // for (Map.Entry<String, Long> e : fileTimestamps.entrySet()) {
+        // System.out.println(e.getKey() + ": " + e.getValue());
+        // }
         store();
     }
 
