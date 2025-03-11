@@ -12,6 +12,7 @@ public class Transaction implements Serializable {
     HashMap<String, Long> fileTimestamps;
     HashMap<String, String> writes;
     List<String> removes;
+    List<String> relevantFiles;
     boolean verbose = false;
     boolean startedCommit = false;
 
@@ -34,20 +35,24 @@ public class Transaction implements Serializable {
     private boolean hasConflicts() {
         HashMap<String, Long> currentFileTimestamps = computeFileTimestamps();
         // System.out.println("Transaction " + name + ": ------------------");
-        for (Map.Entry<String, Long> e : currentFileTimestamps.entrySet()) {
-            Long previousTimestamp = fileTimestamps.get(e.getKey());
-            // System.out.println(e.getKey() + ": " + previousTimestamp + " / " +
-            // e.getValue());
-            if (previousTimestamp == null || !previousTimestamp.equals(e.getValue())) {
+        for (String path : relevantFiles) {
+            Long previousTimestamp = fileTimestamps.get(path);
+            Long currentTimeStamp = currentFileTimestamps.get(path);
+            if (previousTimestamp == null ^ currentTimeStamp == null) {
                 if (verbose)
-                    System.out.println("Transaction " + name + " has conflict with: " + e.getKey());
+                    System.out.println("Transaction " + name + " has conflict with: " + path);
+                return true;
+            }
+            if (!previousTimestamp.equals(currentTimeStamp)) {
+                if (verbose)
+                    System.out.println("Transaction " + name + " has conflict with: " + path);
                 return true;
             }
         }
         return false;
     }
 
-    //    returns rollback time if fails; else -1
+    // returns rollback time if fails; else -1
     public long commit() {
         startedCommit = true;
         store();
@@ -94,7 +99,7 @@ public class Transaction implements Serializable {
         store();
     }
 
-    //    returns rollback time if fails; else -1
+    // returns rollback time if fails; else -1
     public long read(String path) {
         if (hasConflicts()) {
             return rollbackSnapshot();
@@ -147,7 +152,7 @@ public class Transaction implements Serializable {
         File dir = new File(headPath());
         File[] files = dir.listFiles();
 
-//        silly bugfix because this can be null in rare multithreaded events
+        // silly bugfix because this can be null in rare multithreaded events
         while (files == null)
             files = dir.listFiles();
         for (File file : Objects.requireNonNull(files)) {
@@ -162,6 +167,7 @@ public class Transaction implements Serializable {
         this.fileTimestamps = computeFileTimestamps();
         this.writes = new HashMap<>();
         this.removes = new ArrayList<>();
+        this.relevantFiles = new ArrayList<>();
 
         if (verbose) {
             System.out.println("Initial state:----------------------");
@@ -170,7 +176,7 @@ public class Transaction implements Serializable {
             }
             System.out.println("---------------------------------");
         }
-        //this implementation does not need zfs snapshots
+        // this implementation does not need zfs snapshots
         // createSnapshot();
         store();
     }
@@ -188,6 +194,7 @@ public class Transaction implements Serializable {
             this.writes = t.writes;
             this.removes = t.removes;
             this.startedCommit = t.startedCommit;
+            this.relevantFiles = t.relevantFiles;
 
             in.close();
             fin.close();
