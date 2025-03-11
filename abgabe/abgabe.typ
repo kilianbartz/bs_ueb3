@@ -56,7 +56,7 @@
 #notice([Der zugehörige Code befindet sich im folgenden Github Repository: #link("https://github.com/kilianbartz/bs_ueb3").])
 
 
-= Aufgabe 1
+= Aufgabe 1<a1>
 Zur Bearbeitung dieser Aufgabe habe ich die im Ordner `a1_a3` befindliche Java Bibilothek _Transaction_ erstellt. Um eine möglich breite Kompatibilität zu anderen Programmen zu bieten, stellt die Anwendung ein *zustandsloses* _Command Line Interface_ bereit. Implementiert sind die folgenden 5 Operationen:
 - *transaction* start _name_: Startet eine Transaktion, speichert den Ausgangszustand des _zfs directory_#footnote([_zfs directory_ meint ein Verzeichnis innerhalb eines zfs pools (hier werden später die Operationen innerhalb der Transaktionen persistiert) und ist $eq.not$ _working directory_ (Hilfsverzeichnis für temporäre Transaktions-Dateien)]) und legt einen ZFS Snapshot an.
 - *transaction* Commit _name_: Falls keine Konflikte vorliegen (also seit Start der Transaktion keine Änderungen im _zfs directory_ durchgeführt wurden), persistiere die writes innerhalb der Transaktion und lösche anschließend den zugehörigen Snapshot und die Transaktions-Datei. Andernfalls: Führe ein Rollback zum Transaktions-Start aus.
@@ -65,8 +65,10 @@ Zur Bearbeitung dieser Aufgabe habe ich die im Ordner `a1_a3` befindliche Java B
 - *remove* _name_ _datei_: Plane _datei_ als Teil der Transaktion _name_ zu löschen. Diese Änderung wird erst beim Commit persisitiert.
 - *redo*: Vervollständige den Commit jeder Transaktion, bei der der Commit schon begonnen wurde.
 
+Zur Konfiguration steht eine `config.toml` zur Verfügung, in der das _zfs directory_ über die beiden Parameter `zfs_filesystem` und `file_root` angepasst werden kann. 
+
 == Was ist eine Transaktion und wie wird Atomizität und Isolation gewahrt?
-Wird eine Transaktion erstellt (`TransactionNoBuffering.java`), wird in der HashMap `fileTimestamps` der ursprüngliche Zustand des _zfs directory_ festgehalten (für jede Datei wird der *Timestamp* der letzten Modifikation gespeichert) und ein ZFS Snapshot erstellt. Wird eine Datei verändert (read/write/remove), wird ihr Name zunächst in der Liste `relevantFiles` gespeichert. Beim Commit wird für alle Dateien, die relevant für diese Transaktion sind, verifiziert, dass es keine Konflikte gibt. 
+Wird eine Transaktion erstellt (`TransactionNoBuffering.java`), wird in der HashMap `fileTimestamps` der ursprüngliche Zustand des _zfs directory_ festgehalten (für jede Datei wird der *Timestamp* der letzten Modifikation gespeichert) und ein ZFS Snapshot erstellt. Wird eine Datei verändert (read/write/remove), wird ihr Name zunächst in der Liste `relevantFiles` gespeichert und ihr Timestamp aktualisiert. Beim Commit wird für alle Dateien, die relevant für diese Transaktion sind, verifiziert, dass es keine Konflikte gibt. 
 - Ist kein Konflikt aufgetreten, können die Änderungen dieser Transaktion erhalten bleiben und sowohl die Transaktions-Datei, als auch der Snapshot können gelöscht werden.
 - Gab es einen Konflikt, wird diese Transaktion durch einen ZFS Reroll zurückgesetzt und die Transaktions-Datei gelöscht.
 Zudem wird ein Flag `startedCommit` verwaltet, um Transaktionen zu finden, die noch *nicht vollständig commitet* wurden (wenn die Transaktions-Datei nach einem Crash existiert, jedoch dieses Flag gesetzt ist, ist der Crash während des Commit passiert). Diese Transaktionen sind relevant für die Redo-Operation.
@@ -79,5 +81,8 @@ Als Alternative, welche besser mit den ACID-Prinzipien klarkommt und zusätzlich
 
 Diese Implementierung hat neben den Limitierungen von _Write Ahead Logging_ (z. B. nur Redo möglich, Änderungen müssen 2x geschrieben werden) zusätzlich den Nachteil, dass die Größe des Logs nicht begrenzt ist und alle geplanten Änderungen aus einer Transaktions-Datei gelesen werden müssen, was vermutlich je nach Situation die Performance deutlich verschlechtern könnte. 
 
-== Aufgabe 2
+= Aufgabe 2
 
+Um zu demonstrieren, wie simpel man mit einer generischen Programmiersprache auf die Transaktions-Logik der Java-Applikation aus Aufgabe 1 zugreifen kann, habe ich mich dazu entschieden, das Brainstorming-Tool in Python zu schreiben. Es handelt sich um ein textbasiertes Programm, das zu jeder Idee einen _Namen_, eine _Beschreibung_ und _Notizen_ erfragt, welche denkbar einfach in der Command Line eingegeben werden. Die Idee wird als JSON-Datei gespeichert. Existiert bereits eine Idee mit demselben Namen, werden die alte Beschreibung und Notizen als Hinweis angezeigt.
+
+Damit die Änderungen atomar und konfliktfrei erfolgen, greift das Python-Skript mittels `subprocess` auf die Befehle `transaction start`, `write` und `transaction commit` meiner Applikation aus Aufgabe 1 zu. Die Transaktions-Logik ist dazu in der Python-Klasse `Transaction` gekapselt, sodass sich der Code für das eigentliche Brainstorming-Tool auf nur 40 Lines of Code beläuft. Auch für dieses Skript gibt es eine Konfigurations-Datei (`brainstorm_config.toml`), in der die entsprechende Executable für die Transaktions-Verwaltung angegeben werden kann.

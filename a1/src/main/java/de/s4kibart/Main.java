@@ -62,6 +62,10 @@ class TransactionStartCommand implements Runnable {
     private String name;
     private Config cfg;
 
+    @CommandLine.Option(names = { "-v",
+            "--verbose" }, description = "enables verbose outputs which enables output of durations and output of file reads")
+    private boolean verbose;
+
     public TransactionStartCommand(Config cfg) {
         this.cfg = cfg;
     }
@@ -73,7 +77,8 @@ class TransactionStartCommand implements Runnable {
 
     @Override
     public void run() {
-        new Transaction(cfg, name);
+        Transaction t = new Transaction(cfg, name);
+        t.setVerbose(verbose);
     }
 }
 
@@ -144,7 +149,7 @@ class TransactionRedoCommand implements Runnable {
     public void run() {
         try (Stream<Path> files = Files.walk(Paths.get("."))) {
             files.filter(Files::isRegularFile)
-                    .filter(p -> p.toString().endsWith(".t"))  // replace .txt with your extension
+                    .filter(p -> p.toString().endsWith(".t")) // replace .txt with your extension
                     .forEach(f -> {
                         Transaction t = new Transaction(f.getFileName().toString());
                         if (t.startedCommit)

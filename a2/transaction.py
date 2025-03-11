@@ -45,7 +45,9 @@ class Transaction:
 
     def start(self) -> str:
         start = time()
-        output = execute_command(f"java -jar {self.transactions_jar} start {self.name}")
+        output = execute_command(
+            f"java -jar {self.transactions_jar} start -v {self.name}"
+        )
         print(f"Transaction started in {time() - start} seconds")
         return output
 
