@@ -55,7 +55,7 @@ public class TransactionNoBuffering implements Serializable {
         startedCommit = true;
         store();
         if (hasConflicts())
-            return rollbackSnapshot();
+            return rollbackSnapshot() / 1000;
 
         if (verbose) {
             System.out.println("Transaction " + name + ": no conflict.");
@@ -144,10 +144,10 @@ public class TransactionNoBuffering implements Serializable {
     private long rollbackSnapshot() {
         if (verbose)
             System.out.println("resetting system to snapshot " + name + "...");
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
         String[] command = { "zfs", "rollback", snapshotName() };
         executeCommand(command);
-        long rollbackTime = System.currentTimeMillis() - start;
+        long rollbackTime = System.nanoTime() - start;
         // because the transaction failed, start a new transaction from the new
         removeSnapshot();
         return rollbackTime;
