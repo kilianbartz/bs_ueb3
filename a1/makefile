@@ -5,6 +5,8 @@ SOURCE_JAR = target/a1-1.0.jar
 DEST_JAR = ../a2/v1.jar
 VALIDATE_JAR = target/a1-validate-1.0.jar
 VALIDATE_ITERATIONS = 3000
+VALIDATE_NO_FILES = 1
+VALIDATE_METHOD = Transaction
 
 # Default target
 all: package
@@ -21,10 +23,10 @@ clean:
 # Target to validate the package
 cleanvalidate: package
 	./zfs_cleanup.sh
-	java -jar $(VALIDATE_JAR) $(VALIDATE_ITERATIONS) > validation_$$(date +"%Y%m%d_%H%M%S").log
+	java -jar $(VALIDATE_JAR) $(VALIDATE_ITERATIONS) $(VALIDATE_NO_FILES) $(VALIDATE_METHOD)
 
 validate: package
-	java -jar $(VALIDATE_JAR) $(VALIDATE_ITERATIONS) > validation_$$(date +"%Y%m%d_%H%M%S").log
+	java -jar $(VALIDATE_JAR) $(VALIDATE_ITERATIONS) $(VALIDATE_NO_FILES) $(VALIDATE_METHOD)
 
 # Help target
 help:

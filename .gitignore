@@ -1,3 +1,5 @@
 a2/v1.jar
 __pycache__/
 *.t
+*.log
+*.json

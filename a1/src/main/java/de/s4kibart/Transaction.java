@@ -38,7 +38,6 @@ public class Transaction implements Serializable {
         HashMap<String, Long> currentFileTimestamps = computeFileTimestamps();
         // System.out.println("Transaction " + name + ": ------------------");
         for (String path : relevantFiles) {
-            System.out.println("checking " + path);
             Long previousTimestamp = fileTimestamps.get(path);
             Long currentTimeStamp = currentFileTimestamps.get(path);
             if (previousTimestamp == null && currentTimeStamp == null)

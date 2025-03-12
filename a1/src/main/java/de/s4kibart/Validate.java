@@ -36,7 +36,8 @@ public class Validate {
                 totalPersistTime += resetTime;
             }
         }
-        return new ValidationPair(collisions, (-1) * totalPersistTime);
+        double avgPersistTime = totalPersistTime / (double) iterations;
+        return new ValidationPair(collisions, (-1) * avgPersistTime);
     }
 
     private static ValidationPair workload_write_read_single(String[] finalNames, String sampleText, int iterations) {
@@ -58,7 +59,8 @@ public class Validate {
             }
 
         }
-        return new ValidationPair(collisions, (-1) * totalPersistTime);
+        double avgPersistTime = totalPersistTime / (double) iterations;
+        return new ValidationPair(collisions, (-1) * avgPersistTime);
 
     }
 
@@ -76,7 +78,8 @@ public class Validate {
                 totalResetTime += resetTime;
             }
         }
-        return new ValidationPair(collisions, totalResetTime);
+        double avgResetTime = collisions == 0 ? 0 : totalResetTime / (double) iterations;
+        return new ValidationPair(collisions, avgResetTime);
     }
 
     private static ValidationPair workload_write_read_single_NoBuffering(String[] finalNames, String sampleText,
@@ -98,7 +101,8 @@ public class Validate {
             }
 
         }
-        return new ValidationPair(collisions, totalResetTime);
+        double avgResetTime = collisions == 0 ? 0 : totalResetTime / (double) iterations;
+        return new ValidationPair(collisions, avgResetTime);
 
     }
 
@@ -116,7 +120,7 @@ public class Validate {
             for (Future<ValidationPair> f : futures) {
                 ValidationPair p = f.get();
                 collisions += p.numCollisions;
-                avgTime += p.avgResetTime;
+                avgTime += p.avgExtraTime;
             }
             double duration = (System.currentTimeMillis() - start) / 1000.;
             avgTime = avgTime / numProcesses;
@@ -138,7 +142,7 @@ public class Validate {
         int TOTAL_ITERATIONS = Integer.parseInt(args[0]);
         int numFiles = Integer.parseInt(args[1]);
         String method = args[2];
-        if (!method.equalsIgnoreCase("Transaction") && !method.equalsIgnoreCase("Transaction")) {
+        if (!method.equalsIgnoreCase("Transaction") && !method.equalsIgnoreCase("TransactionNoBuffering")) {
             System.err.println(
                     "You have to provide the total number of iterations for each test as argument 1 and the number of files to use (1,5,10) as argument 2 and the method (Transaction, TransactionNoBuffering) as argument 3.");
             System.exit(2);
@@ -164,7 +168,8 @@ public class Validate {
         String content = sb.toString();
 
         System.out
-                .println("validating using " + TOTAL_ITERATIONS + " iterations and " + finalNames.length + " files...");
+                .println("validating using " + method + ", " + TOTAL_ITERATIONS + " iterations and " + finalNames.length
+                        + " files...");
         // only writes
         System.out.println("only write times: --------------------------------");
         for (int i = 1; i <= 4; i++) {
@@ -195,11 +200,11 @@ public class Validate {
 
 class ValidationPair {
     public int numCollisions;
-    public double avgResetTime;
+    public double avgExtraTime;
 
-    public ValidationPair(int numCollisions, long totalResetTime) {
+    public ValidationPair(int numCollisions, double avgExtraTime) {
         this.numCollisions = numCollisions;
-        avgResetTime = numCollisions == 0 ? 0 : totalResetTime / (double) numCollisions;
+        this.avgExtraTime = avgExtraTime;
     }
 }
 
@@ -225,7 +230,7 @@ class FourTuple {
         temp.put("numProcesses", numProcesses);
         temp.put("duration", duration);
         temp.put("collisions", collisions);
-        temp.put("avgTime", avgTime);
+        temp.put("avgExtraTime", avgTime);
         return temp;
     }
 }
