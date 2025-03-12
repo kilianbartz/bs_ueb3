@@ -69,7 +69,7 @@ public class Transaction implements Serializable {
         }
 
         // persist writes and removes
-        long time = System.currentTimeMillis();
+        long time = System.nanoTime();
         for (Map.Entry<String, String> e : writes.entrySet()) {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(e.getKey()))) {
                 writer.write(e.getValue());
@@ -83,9 +83,9 @@ public class Transaction implements Serializable {
             File file = new File(f);
             file.delete();
         }
-        long duration = System.currentTimeMillis() - time;
+        long duration = System.nanoTime() - time;
         removeSnapshot();
-        return (-1) * duration;
+        return (-1) * duration / 1000;
     }
 
     private String headPath() {
