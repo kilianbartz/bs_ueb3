@@ -112,3 +112,34 @@ Damit die Änderungen atomar und konfliktfrei erfolgen, greift das Python-Skript
 Auch für dieses Skript gibt es eine Konfigurations-Datei (`brainstorm_config.toml`), in der die entsprechende Executable für die Transaktions-Verwaltung angegeben werden kann.
 
 = Aufgabe 3
+Da die Kommunikation über die Command Line etwa 0.5s an Overhead mit sich bringt, habe ich die Validierung für maximale Performance in Java (`Validate.java`) implementiert, sodass die Transaktions-Logik direkt zugreifbar ist. Beide Implementierungen wurden in je 2 Szenarios getestet: 
++ _Only Writes_: Jeder Thread startet eine Transaktion, wählt eine zufällige Datei, beschreibt diese mit einem zufälligen Inhalt und commitet die Transaktion.
++ _Read + Write_: Jeder Thread startet eine Transaktion, wählt eine zufällige Datei und beschreibt diese zu 50% mit einem zufälligen Inhalt (in den restlichen 50% wird die Datei gelesen). Anschließend wird die Transaktion commitet.
+Für einen fairen Vergleich der beiden Implementierungen wird für `Transaction.java` die durchschnittliche Zeit für die writes beim Commit gemessen, für `TransactionNoBuffering.java` die durchschnittliche Rücksetzzeit.
+
+Beide Szenarios wurden mit 1-4 Threads in den untenstehenden 5 Konfigurationen getestet.
+
+#align(center, 
+table(
+  columns: 2,
+  inset: 10pt,
+  align: center,
+  table.header([*\#Verwendete Dateien*], [*\#Iterationen*]),
+  "1", "1000",
+  "1", "500",
+  "1", "3000",
+  "5", "3000",
+  "10", "3000",
+))
+
+Die Experimente wurden auf einer Proxmox VM mit der folgenden Spezifikation ausgeführt:
+#align(center, table(
+  columns: 2,
+  inset: 10pt,
+  align: horizon,
+  "CPU", "Intel i5 8400T",
+  "#CPU-Kerne", "4",
+  "Hauptspeicher", "12GB DDR4",
+  "OS", "Ubuntu 24.04.1 LTS",
+  "zpool Konfiguration", "raidz1: 3x8GB"
+))
