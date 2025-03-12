@@ -64,8 +64,8 @@ Zur Bearbeitung dieser Aufgabe habe ich die im Ordner `a1_a3` befindliche Java B
 - *read* _name_ _datei_: Lese _datei_ als Teil der Transaktion _name_. Hat sich der Zustand des _zfs directory_ seit Beginn der Transaktion geändert, führe ein Rollback durch.
 - *remove* _name_ _datei_: Plane _datei_ als Teil der Transaktion _name_ zu löschen. Diese Änderung wird erst beim Commit persisitiert.
 - *redo*: Vervollständige den Commit jeder Transaktion, bei der der Commit schon begonnen wurde.
-
-Zur Konfiguration steht eine `config.toml` zur Verfügung, in der das _zfs directory_ über die beiden Parameter `zfs_filesystem` und `file_root` angepasst werden kann. 
+Die ZFS-Befehle werden mittels `ProcessBuilder` ausgeführt. Dies spart einerseits eine weitere Abhängigkeit, liegt aber vor allem daran, dass es keine populäre Java-Bibliothek für ZFS gibt.
+Zur Konfiguration der Transaktions-Logik steht eine `transactions_config.toml` zur Verfügung, in der das _zfs directory_ über die beiden Parameter `zfs_filesystem` und `file_root` angepasst werden kann. 
 
 == Was ist eine Transaktion und wie wird Atomizität und Isolation gewahrt?
 Wird eine Transaktion erstellt (`TransactionNoBuffering.java`), wird in der HashMap `fileTimestamps` der ursprüngliche Zustand des _zfs directory_ festgehalten (für jede Datei wird der *Timestamp* der letzten Modifikation gespeichert) und ein ZFS Snapshot erstellt. Wird eine Datei verändert (read/write/remove), wird ihr Name zunächst in der Liste `relevantFiles` gespeichert und ihr Timestamp aktualisiert. Beim Commit wird für alle Dateien, die relevant für diese Transaktion sind, verifiziert, dass es keine Konflikte gibt. 
@@ -122,7 +122,7 @@ Beide Szenarios wurden mit 1-4 Threads in den untenstehenden 5 Konfigurationen g
 #align(center, 
 table(
   columns: 2,
-  inset: 10pt,
+  inset: 5pt,
   align: center,
   table.header([*\#Verwendete Dateien*], [*\#Iterationen*]),
   "1", "1000",
@@ -135,7 +135,7 @@ table(
 Die Experimente wurden auf einer Proxmox VM mit der folgenden Spezifikation ausgeführt:
 #align(center, table(
   columns: 2,
-  inset: 10pt,
+  inset: 5pt,
   align: horizon,
   "CPU", "Intel i5 8400T",
   "#CPU-Kerne", "4",
