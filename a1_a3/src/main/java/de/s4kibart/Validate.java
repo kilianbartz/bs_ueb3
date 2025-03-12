@@ -89,7 +89,7 @@ public class Validate {
         for (int i = 0; i < iterations; i++) {
             String fileName = finalNames[random.nextInt(0, finalNames.length)];
 
-            Transaction t = new Transaction(cfg, UUID.randomUUID().toString());
+            TransactionNoBuffering t = new TransactionNoBuffering(cfg, UUID.randomUUID().toString());
             if (random.nextFloat() < 0.5)
                 t.write(fileName, getRandomString(sampleText));
             else
