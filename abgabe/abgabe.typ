@@ -19,11 +19,13 @@
   numbering: "1",
 )
 #set text(
-  font: "New Computer Modern"
+  font: "New Computer Modern",
+  lang: "de"
 )
 #set par(
   first-line-indent: 1em,
 )
+#set heading(numbering: "1.")
 #let notice(title: "Hinweis", body) = {
   block(
     width: 100%,
@@ -81,7 +83,7 @@ Als Alternative, die besser mit den ACID Eigenschaften klar kommt und nicht auf 
 
 Diese Implementierung hat neben den Limitierungen von _Write Ahead Logging_ (z. B. nur Redo möglich, Änderungen müssen 2x geschrieben werden) zusätzlich den Nachteil, dass die Größe des Logs nicht begrenzt ist und alle geplanten Änderungen aus einer Transaktions-Datei gelesen werden müssen, was vermutlich je nach Situation die Performance deutlich verschlechtern könnte. 
 
-== Praxisbeispiel zur Veranschaulichung der Funktionsweise beider Transaktions-Implementierungen
+== Praxisbeispiel zur Veranschaulichung der Funktionsweise beider Transaktions-Implementierungen<praxisbsp>
 In diesem Praxisbeispiel möchte ich zeigen, dass `TransactionNoBuffering.java` zwar *Konsistenz* einhält, jedoch durch die Seiteneffekte, die bei einem ZFS Rollback auftreten können (i.e., es werden zu viele Dateien, mitunter auch erfolgreiche Transaktionen zurückgesetzt) auch Wiederholungen von verworfenen Transaktionen *keine Isolation* gewährleisten können.
 
 
@@ -115,7 +117,14 @@ Auch für dieses Skript gibt es eine Konfigurations-Datei (`brainstorm_config.to
 Da die Kommunikation über die Command Line etwa 0.5s an Overhead mit sich bringt, habe ich die Validierung für maximale Performance in Java (`Validate.java`) implementiert, sodass die Transaktions-Logik direkt zugreifbar ist. Beide Implementierungen wurden in je 2 Szenarios getestet: 
 + _Only Writes_: Jeder Thread startet eine Transaktion, wählt eine zufällige Datei, beschreibt diese mit einem zufälligen Inhalt und commitet die Transaktion.
 + _Read + Write_: Jeder Thread startet eine Transaktion, wählt eine zufällige Datei und beschreibt diese zu 50% mit einem zufälligen Inhalt (in den restlichen 50% wird die Datei gelesen). Anschließend wird die Transaktion commitet.
-Für einen fairen Vergleich der beiden Implementierungen wird für `Transaction.java` die durchschnittliche Zeit für die writes beim Commit gemessen, für `TransactionNoBuffering.java` die durchschnittliche Rücksetzzeit.
+Kommt es zu einem Konflikt, wird die Transaktion unabhängig von der Implementierung zurückgesetzt und diese iteration wiederholt, bis kein Konflikt mehr auftritt.
+
+
+Die wichtigste Metrik für die Performance der beiden Implementierungen ist die durchschnittliche Extrazeit $"avgExtraTime"$. Sie berechnet sich wie folgt:
+- $"avgExtraTime" = frac("total persist time", "# iterations") $ für `Transaction.java`. $"total persist time"$ misst dabei die Summe der Zeit, die `Transaction.java` extra für die Persistierung der geplanten Writes benötigt.
+- $"avgExtraTime" = frac("total reset time", "# iterations")$ für `TransactionNoBuffering.java`
+
+#notice([Bewusst ist $"avgExtraTime"$ für beide Implementierungen über die Anzahl der Iterationen, nicht etwa pro Reset gemittelt. Dies bietet einen faireren Vergleich und lässt abschätzen, wie viel Zeit die Transaktions-Logik in jeder Implementierung für $"iterations"$ Iterationen benötigt, auch wenn extra Zeit tatsächlich in `Transactions.java` bei jeder Transaktion anfällt und bei `TransactionNoBuffering.java` nur bei Konflikten. ])
 
 Beide Szenarios wurden mit 1-4 Threads in den untenstehenden 5 Konfigurationen getestet.
 
@@ -143,3 +152,24 @@ Die Experimente wurden auf einer Proxmox VM mit der folgenden Spezifikation ausg
   "OS", "Ubuntu 24.04.1 LTS",
   "zpool Konfiguration", "raidz1: 3x8GB"
 ))
+
+#figure(grid(
+  columns: 2,     // 2 means 2 auto-sized columns
+        gutter: 2mm,    // space between columns
+        image("analysis_threads.png"),
+        image("analysis_threads_extratime.png")
+), caption: "Links: Vergleich der Dauer der zwei Szenarios (only write, read/write) mit beiden Implementierungen. Rechts: Anzahl der Kollisionen und durchschnittliche Extrazeit bei 2-4 Threads.")<durations>
+Wie in @durations zu sehen, verhalten sich beide Szenarios im Referenzfall mit 1 Thread sehr ähnlich. Für `Transaction.java` ist wie zu erwarten der read/write Workload etwas leichter als der write Workload, da das Lesen selbst keine Extrazeit für die Persistierung verursacht. Dass dies keine sehr große Rolle spielt (read/write ist nicht 50% schneller als write), liegt daran, dass Kollisionen und die damit verbundenen Retries deutlich teurer sind. Außerdem sieht man, dass die parallelen Operationen (zumindest mit bis zu 3 Threads) durchaus einen Performance-Vorteil bringen. Mit 4 Threads scheint der Overhead durch die gestiegenen Kollisionen jedoch den Vorteil der Parallelisierung zu überwiegen.
+
+`TransactionNoBuffering.java` benötigt in jedem Fall deutlich länger, was der Latenz der ZFS Befehle geschuldet ist. Obwohl es durch die langsamere Ausführung zu weniger Kollisionen kommt, ist die extra Zeit durch den ZFS Overhead deutlich länger. Zwei interessante Auffälligkeiten:
++ read/write Workloads mit `TransactionNoBuffering.java` sind überraschenderweise etwas langsamer als write Workloads. 
++ Die benötigte Extrazeit von `TransactionNoBuffering.java` steigt scheinbar überproportional zur Anzahl der Threads (damit Anzahl der Konflikte).
+
+#figure(image("analysis_nofiles.png", width: 70%), caption: "Zahl der Kollisionen (hell) und durchschnittliche Extrazeit (dunkel) in Abhängigkeit der Anzahl der verwendeten Dateien, welche 4 Threads lesend oder schreibend zugreifen.")<no_files>
+Bezüglich der Anzahl der Dateien habe ich erwartet, dass die durchschnittliche Rücksetzzeit für `TransactionNoBuffering.java` mit der Anzahl der Dateien steigt, da ZFS so im Durchschnitt mehr Blöcke zurücksetzen muss. 
+Wie jedoch in @no_files zu sehen, scheint dieser Aufwand vernachlässigbar und eine größere Anzahl an verwendeten Dateien verringert das Risiko einer Kollision, womit proportional die benötigte Extrazeit beider Implementierungen abnimmt.
+
+Insgesamt scheint `Transaction.java` die bessere Wahl zu sein, da es in allen Szenarien deutlich schneller ist als `TransactionNoBuffering.java` und auch besser die ACID-Prinzipien einhält (siehe @praxisbsp). Trotzdem ist die Verwendung von ZFS in `TransactionNoBuffering.java` sehr spannend und ZFS selbst in meinen Tests angenehm schnell, obwohl sich dies durch den Overhead durch die CLI-Aufrufe der ZFS Befehle in meiner Implementierung nicht widerspiegelt. In speziellen Fällen könnte diese Variante trotzdem besser sein, wenn es sehr viele writes gibt (dadurch steigt Extrazeit für Transactions) und sehr wenige Konflikte (dadurch sinkt Extrazeit für TransactionNoBuffering). Praxistauglich sind beide Implementierungen jedoch nicht, 
+
+Praxistauglich sind beide Implementierungen in diesem Zustand realistisch gesehen nicht, da nur text-basiertes Interface zur Verfügung steht und selbst die schnellere `Transaction.java` Implementierung mit etwa 8s für 3000 sequenzielle writes einen zu hohen Overhead hat. Trotzdem sieht man, dass optimistische Transaktionen durchaus einen Performance-Vorteil gegenüber Locks, welche die Writes auf eine Datei sequenzialisieren würden, bieten können (siehe write to 1 file, @durations). Gelingt es z. B. mittels rust, schlankeren Datenstrukturen und asynchronous writes den Overhead zu reduzieren, könnte man durchaus über eine solche _Concurrency Control_ nachdenken. 
+
